@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import os
 
+st.set_page_config(page_title="Protocol Changes", layout="wide", initial_sidebar_state="collapsed")
+
 if os.path.exists(CHANGE_LOG) and os.path.getsize(CHANGE_LOG) > 0:
     change_df = pd.read_csv(CHANGE_LOG)
 else:
