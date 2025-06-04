@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 from datetime import datetime
 import smtplib
 from email.message import EmailMessage
@@ -26,82 +25,89 @@ except Exception as e:
     st.stop()
 
 st.title("✅ CT Protocol Attestation Form")
-st.markdown("Please review the updated protocols and complete the attestation below.")
+st.markdown("Please review each updated protocol and check off the ones that have been successfully implemented.")
 
-# Display each protocol sheet as an image
+# Load Excel
 try:
-    excel = pd.ExcelFile(EXCEL_FILE)
-    for protocol in active_protocols:
-        if protocol not in excel.sheet_names:
-            st.warning(f"'{protocol}' not found in Excel file.")
-            continue
-        df = excel.parse(protocol)
-
-        st.markdown(f"### 📄 {protocol}")
-        fig, ax = plt.subplots(figsize=(min(12, len(df.columns) * 2), min(0.5 * len(df), 12)))
-        ax.axis('off')
-        table = ax.table(cellText=df.values,
-                         colLabels=df.columns,
-                         cellLoc='center',
-                         loc='center')
-        table.auto_set_font_size(False)
-        table.set_fontsize(10)
-        st.pyplot(fig)
-except Exception as e:
-    st.error(f"Error rendering sheets: {e}")
+    xl = pd.ExcelFile(EXCEL_FILE)
+except FileNotFoundError:
+    st.error(f"Excel file '{EXCEL_FILE}' not found.")
     st.stop()
 
+completed = {}
+for protocol in active_protocols:
+    st.markdown(f"---\n### 📄 {protocol}")
+    if protocol not in xl.sheet_names:
+        st.warning(f"'{protocol}' not found in Excel file.")
+        continue
+
+    try:
+        df = xl.parse(protocol)
+        st.dataframe(df, use_container_width=True)
+        completed[protocol] = st.checkbox(f"✅ Mark '{protocol}' as completed", key=protocol)
+    except Exception as e:
+        st.warning(f"Error displaying {protocol}: {e}")
+
 st.markdown("---")
-st.subheader("🖊 Attestation")
+st.subheader("🖊 Final Attestation")
 
 name = st.text_input("Supervisor Name")
 site = st.selectbox("Select Site", SITES)
-confirm = st.checkbox("I attest that I have reviewed and will implement the updated protocols listed above.")
+confirm = st.checkbox("I attest that I have reviewed and taken responsibility for the above changes.")
 
 if st.button("Submit Attestation"):
-    if not name or not confirm:
-        st.warning("Please enter your name, select a site, and check the attestation box.")
+    if not name or not site or not confirm:
+        st.warning("Please complete all fields and check the attestation box.")
     else:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        entry = {
+        marked_done = [p for p in completed if completed[p]]
+        marked_not_done = [p for p in completed if not completed[p]]
+
+        # Log to CSV
+        new_entry = {
             "Timestamp": timestamp,
             "Name": name,
             "Site": site,
-            "Protocols": "; ".join(active_protocols)
+            "Completed Protocols": "; ".join(marked_done),
+            "Incomplete Protocols": "; ".join(marked_not_done)
         }
 
-        # Log to attestations.csv
         try:
             df = pd.read_csv(ATTEST_LOG)
-            df = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
+            df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
         except FileNotFoundError:
-            df = pd.DataFrame([entry])
+            df = pd.DataFrame([new_entry])
         df.to_csv(ATTEST_LOG, index=False)
 
         # Send email notification
         try:
             msg = EmailMessage()
-            msg["Subject"] = f"New Protocol Attestation by {name}"
+            msg["Subject"] = f"[CT Attestation] {name} from {site} submitted protocol updates"
             msg["From"] = "noreply@protocolattestation.app"
             msg["To"] = ", ".join(EMAIL_RECIPIENTS)
-            body = f"""A supervisor has attested to the following CT protocol changes:
 
-Name: {name}
+            body = f"""
+Supervisor: {name}
 Site: {site}
 Timestamp: {timestamp}
 
-Protocols:
-{chr(10).join(active_protocols)}
+✅ Completed Protocols:
+{chr(10).join(marked_done) if marked_done else 'None'}
 
-This was logged in the system automatically."""
+❌ Not Yet Marked Complete:
+{chr(10).join(marked_not_done) if marked_not_done else 'None'}
+
+This submission has been logged in attestations.csv.
+            """
             msg.set_content(body)
 
-            # Replace with your SMTP settings if needed
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login("your_email@gmail.com", "your_app_password")
-                server.send_message(msg)
+            # Uncomment and update with working SMTP credentials
+            # with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            #     server.starttls()
+            #     server.login("your_email@gmail.com", "your_app_password")
+            #     server.send_message(msg)
+
+            st.success("✅ Attestation submitted and email prepared.")
+            st.info("Email sending is currently disabled for testing.")
         except Exception as e:
             st.warning(f"Attestation saved, but email failed to send: {e}")
-        else:
-            st.success("✅ Your attestation has been recorded and email sent.")
