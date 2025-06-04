@@ -1,14 +1,10 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime
-import smtplib
-from email.message import EmailMessage
 import os
-
-EXCEL_FILE = "protocol_sections.xlsx"
-ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
-ROW_SELECTION_FILE = "protocol_row_map.csv"
-ATTEST_LOG = "attestations.csv"
+from PIL import Image
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 st.set_page_config(
     page_title="Protocol Attestation",
@@ -16,107 +12,122 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-SITES = ["MMC", "Overlook"]
-EMAIL_RECIPIENTS = ["sean.chinery@atlantichealth.org"]
+EXCEL_FILE = "protocol_sections.xlsx"
+ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
+ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
+ATTEST_LOG = "attestation_log.csv"
+SHEET_IMAGES_DIR = "sheet_images"  # optional: folder of PNG snapshots
 
-# Load active protocols
+st.title("✅ Protocol Attestation")
+
+# Load data
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
-    st.warning("No active protocols selected. Please go to Home and choose protocols.")
+    st.warning("Please select protocols on the home page.")
     st.stop()
 
 active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
 active_protocols = active_df["Protocol"].tolist()
 
-# Load row filters (optional)
-ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
+if not os.path.exists(ROWCOL_SELECTION_FILE):
+    st.warning("No row/column selections found. Please complete 'Choose Rows and Columns' first.")
+    st.stop()
 
-if os.path.exists(ROWCOL_SELECTION_FILE):
-    rowcol_df = pd.read_csv(ROWCOL_SELECTION_FILE)
-else:
-    rowcol_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenamedColumn"])
-
-st.title("✅ CT Protocol Attestation Form")
-st.markdown("Please review only the rows selected for each protocol and confirm your attestation.")
+rowcol_df = pd.read_csv(ROWCOL_SELECTION_FILE)
 
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
-except FileNotFoundError:
-    st.error(f"Excel file '{EXCEL_FILE}' not found.")
+except Exception as e:
+    st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-completed = {}
+# Supervisor info
+st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
+site = st.selectbox("Select your site:", ["MMC", "Overlook"])
+name = st.text_input("Your full name:")
+
+# Protocol confirmation
+st.markdown("### 📋 Review and confirm protocol changes below.")
+finished_protocols = []
 
 for protocol in active_protocols:
-    st.markdown(f"---\n### 📄 {protocol}")
-    if protocol not in xl.sheet_names:
-        st.warning(f"'{protocol}' not found in Excel file.")
-        continue
+    st.markdown(f"---\n#### 📄 {protocol}")
 
     df = xl.parse(protocol)
+    selection = rowcol_df[rowcol_df["Protocol"] == protocol]
 
-    # Filter rows if mapping exists
-    rows_for_protocol = row_map[row_map["Protocol"] == protocol]["RowIndex"].tolist()
-    if rows_for_protocol:
-        df = df.iloc[[i - 1 for i in rows_for_protocol if 1 <= i <= len(df)]]
+    if df.empty or selection.empty:
+        st.info("No matching data found.")
+        continue
 
-    st.dataframe(df, use_container_width=True)
-    completed[protocol] = st.checkbox(f"✅ Mark '{protocol}' as completed", key=protocol)
+    selected_rows = selection["RowIndex"].unique().tolist()
+    col_map = selection[["OriginalColumn", "RenamedColumn"]].drop_duplicates()
+    rename_dict = dict(zip(col_map["OriginalColumn"], col_map["RenamedColumn"]))
+    display_cols = list(rename_dict.keys())
 
-st.markdown("---")
-st.subheader("🖊 Final Attestation")
+    # Filter and rename
+    df_display = df.loc[selected_rows, display_cols].rename(columns=rename_dict)
 
-name = st.text_input("Supervisor Name")
-site = st.selectbox("Select Site", SITES)
-confirm = st.checkbox("I attest that I have reviewed and am responsible for the protocols above.")
+    st.dataframe(df_display, use_container_width=True)
 
-if st.button("Submit Attestation"):
-    if not name or not site or not confirm:
-        st.warning("Please complete all fields and confirm.")
-    else:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        done = [p for p in completed if completed[p]]
-        not_done = [p for p in completed if not completed[p]]
+    # Show image if available
+    img_path = os.path.join(SHEET_IMAGES_DIR, f"{protocol}.png")
+    if os.path.exists(img_path):
+        st.image(Image.open(img_path), caption=f"{protocol} snapshot", use_column_width=True)
 
-        new_entry = {
-            "Timestamp": timestamp,
-            "Name": name,
-            "Site": site,
-            "Completed Protocols": "; ".join(done),
-            "Incomplete Protocols": "; ".join(not_done)
-        }
+    # Completion checkbox
+    checked = st.checkbox(f"I confirm {protocol} has been updated", key=f"{protocol}_done")
+    if checked:
+        finished_protocols.append(protocol)
 
-        try:
-            df = pd.read_csv(ATTEST_LOG)
-            df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
-        except FileNotFoundError:
-            df = pd.DataFrame([new_entry])
-        df.to_csv(ATTEST_LOG, index=False)
+# Submit
+if st.button("📨 Submit Attestation"):
+    if not name or not site:
+        st.error("Please enter your name and site.")
+        st.stop()
 
-        try:
-            msg = EmailMessage()
-            msg["Subject"] = f"[CT Attestation] {name} from {site}"
-            msg["From"] = "noreply@protocolattestation.app"
-            msg["To"] = ", ".join(EMAIL_RECIPIENTS)
+    protocol_list = ", ".join(active_protocols)
+    done_list = ", ".join(finished_protocols)
 
-            msg.set_content(f"""
-Supervisor: {name}
-Site: {site}
-Timestamp: {timestamp}
+    # Log submission
+    log_entry = {
+        "Name": name,
+        "Site": site,
+        "Protocols Reviewed": protocol_list,
+        "Protocols Completed": done_list
+    }
 
-✅ Completed Protocols:
-{chr(10).join(done) if done else 'None'}
+    df_log = pd.DataFrame([log_entry])
 
-❌ Not Marked Complete:
-{chr(10).join(not_done) if not_done else 'None'}
-""")
+    if os.path.exists(ATTEST_LOG):
+        existing = pd.read_csv(ATTEST_LOG)
+        df_log = pd.concat([existing, df_log], ignore_index=True)
 
-            # SMTP block is optional and commented out
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login("sean.chinery@gmail.com", "jlgu hwjl ucth nkkp")
-                server.send_message(msg)
+    df_log.to_csv(ATTEST_LOG, index=False)
+    st.success("Your attestation has been recorded.")
 
-            st.success("✅ Attestation recorded. Email template prepared.")
-            #st.info("Email sending is currently disabled (uncomment SMTP to enable).")
-        except Exception as e:
-            st.warning(f"Attestation saved, but email failed to send: {e}")
+    # Send email
+    recipients = ["sean.chinery@atlantichealth.org", "dummy@example.com"]
+    sender = "your.email@gmail.com"
+    subject = f"Protocol Attestation Submitted by {name}"
+
+    body = f"""
+    Name: {name}
+    Site: {site}
+    Protocols Attested: {protocol_list}
+    Protocols Marked Complete: {done_list}
+    """
+
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login("your.email@gmail.com", "your_app_password")  # use an app password
+            server.sendmail(sender, recipients, msg.as_string())
+        st.info("Confirmation email sent.")
+    except Exception as e:
+        st.warning(f"Failed to send email: {e}")
