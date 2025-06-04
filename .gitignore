@@ -1,0 +1,20 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Streamlit-generated files
+.streamlit/config.toml
+
+# VS Code / PyCharm / JetBrains configs
+.vscode/
+.idea/
+
+# CSV logs/data (optional: keep locally, ignore in GitHub)
+protocol_change_log.csv
+attestations.csv
+
+# OS-specific junk
+.DS_Store
+Thumbs.db
+desktop.ini
