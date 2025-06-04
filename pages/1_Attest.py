@@ -1,80 +1,67 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import json
+import urllib.parse
 
-# --- Constants ---
-CHANGE_LOG = "protocol_change_log.csv"
 ATTEST_LOG = "attestations.csv"
+PAGE_MAP_FILE = "protocol_pages.csv"
 
-# --- Query ---
+# Get ?protocol= parameter
 query_params = st.experimental_get_query_params()
-protocol_raw = query_params.get("protocol", [""])[0]
-protocol = protocol_raw.replace("_", " ")
+protocol = query_params.get("protocol", [""])[0].replace("_", " ")
 
-st.title("✅ Protocol Change Attestation")
+st.title("✅ Protocol Attestation")
 
 if not protocol:
-    st.warning("No protocol specified in the URL. Use /attest?protocol=Your_Protocol_Name")
+    st.warning("No protocol specified in the URL. Use ?protocol=Your_Protocol")
     st.stop()
 
-st.header(f"Review Changes for: {protocol}")
-
-# --- Load Data ---
-if not pd.read_csv(CHANGE_LOG).empty:
-    df = pd.read_csv(CHANGE_LOG)
-    match = df[df["Protocol"] == protocol]
-
+# Load PDF page mapping
+try:
+    page_df = pd.read_csv(PAGE_MAP_FILE)
+    match = page_df[page_df["Protocol"] == protocol]
     if match.empty:
-        st.error(f"No change record found for protocol: {protocol}")
+        st.error("Protocol not found in page mapping.")
         st.stop()
     else:
-        row = match.iloc[-1]  # Use latest change if duplicates
+        pdf_url = match["PDF_URL"].iloc[0]
+        start_page = match["StartPage"].iloc[0]
+except Exception as e:
+    st.error(f"Error loading PDF mapping: {e}")
+    st.stop()
 
-        # Display change info
-        st.subheader("📋 Parameters Updated")
-        param_cols = [
-            "Body Part", "Phase", "Plane", "Angle", "Algorithm",
-            "Thickness/Interval", "Archive Destinations",
-            "Body Part per Phase"
-        ]
-        for col in param_cols:
-            st.markdown(f"**{col}**: {row[col]}")
+st.header(f"Review Protocol: {protocol}")
 
-        # Show required series
-        st.subheader("📑 Required Series Table")
+# Generate viewer URL
+viewer = "https://mozilla.github.io/pdf.js/web/viewer.html"
+embed_url = f"{viewer}?file={urllib.parse.quote(pdf_url)}#page={start_page}"
+
+# Display embedded viewer
+st.components.v1.iframe(embed_url, height=700, scrolling=True)
+
+st.markdown("---")
+st.subheader("Attestation Form")
+
+name = st.text_input("Your Name")
+site = st.text_input("Your Site")
+confirm = st.checkbox("I attest that I have reviewed and will follow this protocol.")
+
+if st.button("Submit Attestation"):
+    if not name or not site or not confirm:
+        st.warning("Please complete all fields and confirm.")
+    else:
+        new_entry = {
+            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "Protocol": protocol,
+            "Name": name,
+            "Site": site
+        }
+
         try:
-            series_df = pd.read_json(row["Required Series"])
-            st.dataframe(series_df, use_container_width=True)
-        except Exception:
-            st.text("No valid series table found.")
+            df = pd.read_csv(ATTEST_LOG)
+            df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+        except FileNotFoundError:
+            df = pd.DataFrame([new_entry])
 
-        st.markdown("---")
-        st.subheader("🖊 Attestation Form")
-        name = st.text_input("Your Name")
-        site = st.text_input("Your Site")
-        confirm = st.checkbox("I attest that I have reviewed and will apply these changes.")
-
-        if st.button("Submit Attestation"):
-            if not name or not site or not confirm:
-                st.warning("All fields and checkbox must be completed.")
-            else:
-                new_attest = {
-                    "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    "Protocol": protocol,
-                    "Name": name,
-                    "Site": site
-                }
-
-                if pd.read_csv(ATTEST_LOG).empty:
-                    log_df = pd.DataFrame([new_attest])
-                else:
-                    log_df = pd.read_csv(ATTEST_LOG)
-                    log_df = pd.concat([log_df, pd.DataFrame([new_attest])], ignore_index=True)
-
-                log_df.to_csv(ATTEST_LOG, index=False)
-                st.success("Your attestation has been recorded. Thank you.")
-else:
-    st.error("No protocol change data found. Please submit changes first.")
-# Please submit changes first to generate the change log.
-# If you need to submit changes, use the admin interface.   
+        df.to_csv(ATTEST_LOG, index=False)
+        st.success("✅ Your attestation has been recorded.")
