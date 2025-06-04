@@ -1,63 +1,107 @@
 import streamlit as st
 import pandas as pd
+import matplotlib.pyplot as plt
 from datetime import datetime
+import smtplib
+from email.message import EmailMessage
+import os
 
+EXCEL_FILE = "protocol_sections.xlsx"
+ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
 ATTEST_LOG = "attestations.csv"
-EXCEL_FILE = "AMG CT Protocols.xlsm"
 
-# ✅ Use updated query param method
-query_params = st.query_params
-protocol = query_params.get("protocol", "")
+SITES = ["MMC", "Overlook"]
+EMAIL_RECIPIENTS = ["sean.chinery@atlantichealth.org"]  # Add more if needed
 
-st.title("✅ Protocol Attestation")
-
-if not protocol:
-    st.warning("No protocol specified in the URL. Use ?protocol=Your_Protocol")
+# Load active protocols
+if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
+    st.warning("No active protocols selected. Please go to Home and choose protocols.")
     st.stop()
 
-# Try to load Excel and find matching sheet
 try:
-    xl = pd.ExcelFile(EXCEL_FILE)
-    if protocol not in xl.sheet_names:
-        st.error(f"'{protocol}' not found in {EXCEL_FILE}. Available sheets: {', '.join(xl.sheet_names)}")
-        st.stop()
-    df = xl.parse(protocol)
-except FileNotFoundError:
-    st.error(f"Excel file '{EXCEL_FILE}' not found.")
-    st.stop()
+    active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
+    active_protocols = active_df["Protocol"].tolist()
 except Exception as e:
-    st.error(f"Error reading '{EXCEL_FILE}': {e}")
+    st.error(f"Failed to load active protocols: {e}")
     st.stop()
 
-st.header(f"Review Section: {protocol}")
-st.markdown("Below is the relevant protocol section:")
+st.title("✅ CT Protocol Attestation Form")
+st.markdown("Please review the updated protocols and complete the attestation below.")
 
-# Show the sheet content (read-only)
-st.dataframe(df, use_container_width=True)
+# Display each protocol sheet as an image
+try:
+    excel = pd.ExcelFile(EXCEL_FILE)
+    for protocol in active_protocols:
+        if protocol not in excel.sheet_names:
+            st.warning(f"'{protocol}' not found in Excel file.")
+            continue
+        df = excel.parse(protocol)
+
+        st.markdown(f"### 📄 {protocol}")
+        fig, ax = plt.subplots(figsize=(min(12, len(df.columns) * 2), min(0.5 * len(df), 12)))
+        ax.axis('off')
+        table = ax.table(cellText=df.values,
+                         colLabels=df.columns,
+                         cellLoc='center',
+                         loc='center')
+        table.auto_set_font_size(False)
+        table.set_fontsize(10)
+        st.pyplot(fig)
+except Exception as e:
+    st.error(f"Error rendering sheets: {e}")
+    st.stop()
 
 st.markdown("---")
-st.subheader("🖊 Attestation Form")
+st.subheader("🖊 Attestation")
 
-name = st.text_input("Your Name")
-site = st.text_input("Your Site")
-confirm = st.checkbox("I attest that I have reviewed and will follow this protocol.")
+name = st.text_input("Supervisor Name")
+site = st.selectbox("Select Site", SITES)
+confirm = st.checkbox("I attest that I have reviewed and will implement the updated protocols listed above.")
 
 if st.button("Submit Attestation"):
-    if not name or not site or not confirm:
-        st.warning("Please complete all fields and confirm.")
+    if not name or not confirm:
+        st.warning("Please enter your name, select a site, and check the attestation box.")
     else:
-        new_entry = {
-            "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Protocol": protocol,
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        entry = {
+            "Timestamp": timestamp,
             "Name": name,
-            "Site": site
+            "Site": site,
+            "Protocols": "; ".join(active_protocols)
         }
 
+        # Log to attestations.csv
         try:
-            df_attest = pd.read_csv(ATTEST_LOG)
-            df_attest = pd.concat([df_attest, pd.DataFrame([new_entry])], ignore_index=True)
+            df = pd.read_csv(ATTEST_LOG)
+            df = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
         except FileNotFoundError:
-            df_attest = pd.DataFrame([new_entry])
+            df = pd.DataFrame([entry])
+        df.to_csv(ATTEST_LOG, index=False)
 
-        df_attest.to_csv(ATTEST_LOG, index=False)
-        st.success("✅ Your attestation has been recorded.")
+        # Send email notification
+        try:
+            msg = EmailMessage()
+            msg["Subject"] = f"New Protocol Attestation by {name}"
+            msg["From"] = "noreply@protocolattestation.app"
+            msg["To"] = ", ".join(EMAIL_RECIPIENTS)
+            body = f"""A supervisor has attested to the following CT protocol changes:
+
+Name: {name}
+Site: {site}
+Timestamp: {timestamp}
+
+Protocols:
+{chr(10).join(active_protocols)}
+
+This was logged in the system automatically."""
+            msg.set_content(body)
+
+            # Replace with your SMTP settings if needed
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login("your_email@gmail.com", "your_app_password")
+                server.send_message(msg)
+        except Exception as e:
+            st.warning(f"Attestation saved, but email failed to send: {e}")
+        else:
+            st.success("✅ Your attestation has been recorded and email sent.")
