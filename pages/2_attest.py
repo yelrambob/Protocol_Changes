@@ -28,7 +28,12 @@ active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
 active_protocols = active_df["Protocol"].tolist()
 
 # Load row filters (optional)
-row_map = pd.read_csv(ROW_SELECTION_FILE) if os.path.exists(ROW_SELECTION_FILE) else pd.DataFrame(columns=["Protocol", "RowIndex"])
+ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
+
+if os.path.exists(ROWCOL_SELECTION_FILE):
+    rowcol_df = pd.read_csv(ROWCOL_SELECTION_FILE)
+else:
+    rowcol_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenamedColumn"])
 
 st.title("✅ CT Protocol Attestation Form")
 st.markdown("Please review only the rows selected for each protocol and confirm your attestation.")
