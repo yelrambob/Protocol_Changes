@@ -108,6 +108,6 @@ Timestamp: {timestamp}
                 server.send_message(msg)
 
             st.success("✅ Attestation recorded. Email template prepared.")
-            st.info("Email sending is currently disabled (uncomment SMTP to enable).")
+            #st.info("Email sending is currently disabled (uncomment SMTP to enable).")
         except Exception as e:
             st.warning(f"Attestation saved, but email failed to send: {e}")
