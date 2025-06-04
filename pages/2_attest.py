@@ -67,6 +67,11 @@ for protocol in active_protocols:
     # Filter and rename
     df_display = df.loc[selected_rows, display_cols].rename(columns=rename_dict)
 
+    # Check for duplicate column names
+    if df_display.columns.duplicated().any():
+        st.error(f"Duplicate renamed columns found in {protocol}. Please ensure all renamed columns are unique.")
+        continue
+
     st.dataframe(df_display, use_container_width=True)
 
     # Show image if available
