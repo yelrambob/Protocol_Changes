@@ -41,26 +41,28 @@ for protocol in active_protocols:
 
     st.dataframe(df, use_container_width=True)
 
-    # Build index and label mapping
+    # Index + label mapping
     index_list = list(df.index)
     label_map = {i: f"Row {i+1}" for i in index_list}
     reverse_map = {v: k for k, v in label_map.items()}
 
-    # Default: last 3 rows + row 1 if present
+    # Default: last 3 + first row
     default_raw = [0] + list(df.index[-3:])
     default_indices = sorted(set(i for i in default_raw if i in df.index))
     default_labels = [label_map[i] for i in default_indices]
 
+    select_all = st.checkbox(f"Select all rows for {protocol}", key=f"all_{protocol}")
+
     selected_labels = st.multiselect(
         f"Select rows for {protocol}",
         options=[label_map[i] for i in df.index],
-        default=default_labels,
+        default=[label_map[i] for i in df.index] if select_all else default_labels,
         key=f"rows_{protocol}"
     )
 
-    # Convert labels back to indices
     selected_indices = [reverse_map[label] for label in selected_labels]
     row_selections[protocol] = selected_indices
+
 
 # Save to CSV
 if st.button("💾 Save Row Selections"):
