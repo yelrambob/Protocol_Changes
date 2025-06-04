@@ -67,6 +67,11 @@ for protocol in active_protocols:
     # Filter and rename
     df_display = df.loc[selected_rows, display_cols].rename(columns=rename_dict)
 
+# Check for duplicate column names
+    if df_display.columns.duplicated().any():
+        st.error(f"Duplicate renamed columns found in {protocol}. Please ensure all renamed columns are unique.")
+        continue
+
     # Check for duplicate column names
     if df_display.columns.duplicated().any():
         st.error(f"Duplicate renamed columns found in {protocol}. Please ensure all renamed columns are unique.")
@@ -131,7 +136,7 @@ if st.button("📨 Submit Attestation"):
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login("your.email@gmail.com", "your_app_password")  # use an app password
+            server.login("sean.chinery@gmail.com", "agwv sdua yywu lqmr")  # use an app password
             server.sendmail(sender, recipients, msg.as_string())
         st.info("Confirmation email sent.")
     except Exception as e:
