@@ -126,21 +126,23 @@ if st.button("📨 Submit Attestation"):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     unchecked = [p for p in active_protocols if p not in finished_protocols]
     
-    # Format lists with proper indentation
-    completed_block = "\n".join([f"    {p}" for p in finished_protocols]) or "    None"
-    incomplete_block = "\n".join([f"    {p}" for p in unchecked]) or "    None"
+    body_lines = [
+        f"Supervisor: {name}",
+        f"Site: {site}",
+        f"Timestamp: {timestamp}",
+        "",
+        "✅ Completed Protocols:"
+    ]
     
-    body = textwrap.dedent(f"""\
-        Supervisor: {name}
-        Site: {site}
-        Timestamp: {timestamp}
+    body_lines += [f"  {p}" for p in finished_protocols] if finished_protocols else ["  None"]
     
-        ✅ Completed Protocols:
-    {completed_block}
+    body_lines += [
+        "",
+        "❌ Not Marked Complete:"
+    ]
+    body_lines += [f"  {p}" for p in unchecked] if unchecked else ["  None"]
     
-        ❌ Not Marked Complete:
-    {incomplete_block}
-    """)
+    body = "\n".join(body_lines)
 
     msg = MIMEMultipart()
     msg["From"] = sender
