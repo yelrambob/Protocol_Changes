@@ -102,10 +102,10 @@ Timestamp: {timestamp}
 """)
 
             # SMTP block is optional and commented out
-            # with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            #     server.starttls()
-            #     server.login("your_email", "your_app_password")
-            #     server.send_message(msg)
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login("your_email", "your_app_password")
+                server.send_message(msg)
 
             st.success("✅ Attestation recorded. Email template prepared.")
             st.info("Email sending is currently disabled (uncomment SMTP to enable).")
