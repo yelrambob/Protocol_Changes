@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import datetime
 from PIL import Image
 import smtplib
 from email.mime.text import MIMEText
@@ -120,11 +121,20 @@ if st.button("📨 Submit Attestation"):
     sender = "your.email@gmail.com"
     subject = f"Protocol Attestation Submitted by {name}"
 
-    body = f"""
-    Name: {name}
+    
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    unchecked = [p for p in active_protocols if p not in finished_protocols]
+    
+    body = f"""Supervisor: {name}
     Site: {site}
-    Protocols Attested: {protocol_list}
-    Protocols Marked Complete: {done_list}
+    Timestamp: {timestamp}
+    
+    ✅ Completed Protocols:
+    {chr(10).join(finished_protocols) if finished_protocols else 'None'}
+    
+    ❌ Not Marked Complete:
+    {chr(10).join(unchecked) if unchecked else 'None'}
     """
 
     msg = MIMEMultipart()
