@@ -1,4 +1,4 @@
 Protocol,StartPage,PDF_URL
-Abdomen_Pelvis,5,https://compass.atlantichealth.org/content/dam/intranet/services/radiology/ahs-protocols/AMG%20CT%20Protocols.pdf
-Chest_PE,10,https://compass.atlantichealth.org/content/dam/intranet/services/radiology/ahs-protocols/AMG%20CT%20Protocols.pdf
-Head_CT,15,https://compass.atlantichealth.org/content/dam/intranet/services/radiology/ahs-protocols/AMG%20CT%20Protocols.pdf
+Abdomen_Pelvis,5,https://raw.githubusercontent.com/yelrambob/Protocol_Changes/main/AMG_CT_Protocols.pdf
+Chest_PE,10,https://raw.githubusercontent.com/yelrambob/Protocol_Changes/main/AMG_CT_Protocols.pdf
+Head_CT,15,https://raw.githubusercontent.com/yelrambob/Protocol_Changes/main/AMG_CT_Protocols.pdf
