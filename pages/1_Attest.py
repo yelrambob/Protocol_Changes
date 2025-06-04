@@ -1,14 +1,13 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import urllib.parse
 
 ATTEST_LOG = "attestations.csv"
-PAGE_MAP_FILE = "protocol_pages.csv"
+EXCEL_FILE = "AMG CT Protocols.xlsm"
 
-# Get ?protocol= parameter
-query_params = st.experimental_get_query_params()
-protocol = query_params.get("protocol", [""])[0].replace("_", " ")
+# ✅ Use updated query param method
+query_params = st.query_params
+protocol = query_params.get("protocol", "")
 
 st.title("✅ Protocol Attestation")
 
@@ -16,31 +15,28 @@ if not protocol:
     st.warning("No protocol specified in the URL. Use ?protocol=Your_Protocol")
     st.stop()
 
-# Load PDF page mapping
+# Try to load Excel and find matching sheet
 try:
-    page_df = pd.read_csv(PAGE_MAP_FILE)
-    match = page_df[page_df["Protocol"] == protocol]
-    if match.empty:
-        st.error("Protocol not found in page mapping.")
+    xl = pd.ExcelFile(EXCEL_FILE)
+    if protocol not in xl.sheet_names:
+        st.error(f"'{protocol}' not found in {EXCEL_FILE}. Available sheets: {', '.join(xl.sheet_names)}")
         st.stop()
-    else:
-        pdf_url = match["PDF_URL"].iloc[0]
-        start_page = match["StartPage"].iloc[0]
+    df = xl.parse(protocol)
+except FileNotFoundError:
+    st.error(f"Excel file '{EXCEL_FILE}' not found.")
+    st.stop()
 except Exception as e:
-    st.error(f"Error loading PDF mapping: {e}")
+    st.error(f"Error reading '{EXCEL_FILE}': {e}")
     st.stop()
 
-st.header(f"Review Protocol: {protocol}")
+st.header(f"Review Section: {protocol}")
+st.markdown("Below is the relevant protocol section:")
 
-# Generate viewer URL
-viewer = "https://mozilla.github.io/pdf.js/web/viewer.html"
-embed_url = f"{viewer}?file={urllib.parse.quote(pdf_url)}#page={start_page}"
-
-# Display embedded viewer
-st.components.v1.iframe(embed_url, height=700, scrolling=True)
+# Show the sheet content (read-only)
+st.dataframe(df, use_container_width=True)
 
 st.markdown("---")
-st.subheader("Attestation Form")
+st.subheader("🖊 Attestation Form")
 
 name = st.text_input("Your Name")
 site = st.text_input("Your Site")
@@ -58,10 +54,10 @@ if st.button("Submit Attestation"):
         }
 
         try:
-            df = pd.read_csv(ATTEST_LOG)
-            df = pd.concat([df, pd.DataFrame([new_entry])], ignore_index=True)
+            df_attest = pd.read_csv(ATTEST_LOG)
+            df_attest = pd.concat([df_attest, pd.DataFrame([new_entry])], ignore_index=True)
         except FileNotFoundError:
-            df = pd.DataFrame([new_entry])
+            df_attest = pd.DataFrame([new_entry])
 
-        df.to_csv(ATTEST_LOG, index=False)
+        df_attest.to_csv(ATTEST_LOG, index=False)
         st.success("✅ Your attestation has been recorded.")
