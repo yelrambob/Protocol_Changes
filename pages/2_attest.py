@@ -10,6 +10,8 @@ ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
 ROW_SELECTION_FILE = "protocol_row_map.csv"
 ATTEST_LOG = "attestations.csv"
 
+st.set_page_config(page_title="Protocol Changes", layout="wide", initial_sidebar_state="collapsed")
+
 SITES = ["MMC", "Overlook"]
 EMAIL_RECIPIENTS = ["sean.chinery@atlantichealth.org"]
 
