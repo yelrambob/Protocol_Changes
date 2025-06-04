@@ -2,6 +2,12 @@ import streamlit as st
 import pandas as pd
 import os
 
+if os.path.exists(CHANGE_LOG) and os.path.getsize(CHANGE_LOG) > 0:
+    change_df = pd.read_csv(CHANGE_LOG)
+else:
+    st.warning("No protocol change log found or it's empty.")
+    st.stop()
+
 CHANGE_LOG = "protocol_change_log.csv"
 ATTEST_LOG = "attestations.csv"
 
