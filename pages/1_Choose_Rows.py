@@ -6,13 +6,12 @@ st.set_page_config(page_title="Choose Rows & Columns", layout="wide", initial_si
 
 EXCEL_FILE = "protocol_sections.xlsx"
 ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
-ROW_SELECTION_FILE = "protocol_row_map.csv"
-COL_SELECTION_FILE = "protocol_column_map.csv"
+ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
 
 st.title("📝 Choose Rows and Columns for Attestation")
-st.markdown("Select which rows and columns to display per protocol on the attestation page.")
+st.markdown("Select which rows and columns to display per protocol. You can also rename columns as they’ll appear on the attestation page.")
 
-# Load selected protocols
+# Load active protocols
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
     st.warning("Please go to the Home page to select protocols first.")
     st.stop()
@@ -20,15 +19,14 @@ if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
 active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
 active_protocols = active_df["Protocol"].tolist()
 
-# Load the Excel file
+# Load Excel workbook
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
 except FileNotFoundError:
     st.error(f"Excel file '{EXCEL_FILE}' not found.")
     st.stop()
 
-row_selections = {}
-col_selections = {}
+selection_records = []
 
 for protocol in active_protocols:
     st.markdown(f"---\n### 📄 {protocol}")
@@ -43,15 +41,12 @@ for protocol in active_protocols:
 
     st.dataframe(df, use_container_width=True)
 
-    # ROW SELECTION
-
+    # ROWS
     index_list = list(df.index)
     label_map = {i: f"Row {i+1}" for i in index_list}
     reverse_map = {v: k for k, v in label_map.items()}
 
-    # Default: last 3 + first row (or all if you want — change next line to list(df.index))
-    default_raw = [0] + list(df.index[-3:]) # uncomment here and recomment the line below to change it to all rows 
-    #default_raw = list(df.index)  # Select all rows 
+    default_raw = [0] + list(df.index[-3:])  # ← Change to list(df.index) for all
     default_indices = sorted(set(i for i in default_raw if i in df.index))
     default_labels = [label_map[i] for i in default_indices]
 
@@ -63,33 +58,34 @@ for protocol in active_protocols:
         key=f"rows_{protocol}"
     )
     selected_indices = [reverse_map[label] for label in selected_labels]
-    row_selections[protocol] = selected_indices
 
-    # COLUMN SELECTION
-
+    # COLUMNS + rename
     col_list = list(df.columns)
     select_all_cols = st.checkbox(f"Select all columns for {protocol}", key=f"all_cols_{protocol}")
     selected_cols = st.multiselect(
         f"Select columns for {protocol}",
         options=col_list,
-        default=col_list if select_all_cols else col_list,  # ← Change this if you want partial default
+        default=col_list if select_all_cols else col_list,
         key=f"cols_{protocol}"
     )
-    col_selections[protocol] = selected_cols
+
+    renamed_cols = {}
+    st.markdown("#### ✏️ Rename Selected Columns (Optional)")
+    for col in selected_cols:
+        new_name = st.text_input(f"Rename '{col}'", value=col, key=f"rename_{protocol}_{col}")
+        renamed_cols[col] = new_name
+
+    # Combine selections
+    for row in selected_indices:
+        for col in selected_cols:
+            selection_records.append({
+                "Protocol": protocol,
+                "RowIndex": row,
+                "OriginalColumn": col,
+                "RenamedColumn": renamed_cols.get(col, col)
+            })
 
 # SAVE
 if st.button("💾 Save Selections"):
-    row_data = []
-    for protocol, indices in row_selections.items():
-        for idx in indices:
-            row_data.append({"Protocol": protocol, "RowIndex": idx})
-
-    col_data = []
-    for protocol, cols in col_selections.items():
-        for col in cols:
-            col_data.append({"Protocol": protocol, "ColumnName": col})
-
-    pd.DataFrame(row_data).to_csv(ROW_SELECTION_FILE, index=False)
-    pd.DataFrame(col_data).to_csv(COL_SELECTION_FILE, index=False)
-
-    st.success("Row and column selections saved successfully.")
+    pd.DataFrame(selection_records).to_csv(ROWCOL_SELECTION_FILE, index=False)
+    st.success("Row + column selections (with renames) saved to protocol_row_col_map.csv")
