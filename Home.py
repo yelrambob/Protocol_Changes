@@ -44,5 +44,5 @@ else:
     for proto in selected_protocols:
         encoded = urllib.parse.quote(proto)
         attest_link = f"{BASE_ATTEST_URL}{encoded}"
-        st.markdown(f"- [**{proto}** → Attest here]({attest_link})")
+        #st.markdown(f"- [**{proto}** → Attest here]({attest_link})")
 
