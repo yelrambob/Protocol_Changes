@@ -9,7 +9,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 st.set_page_config(
-    page_title="Protocol Attestation",
+    page_title="Confirmation of Protocol Changes by Site",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -20,11 +20,11 @@ ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
 ATTEST_LOG = "attestation_log.csv"
 SHEET_IMAGES_DIR = "sheet_images"
 
-st.title("✅ Protocol Attestation")
+st.title("✅ Confirmation of Protocol Changes by Site")
 
 # Load active protocols
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
-    st.warning("Please select protocols on the home page.")
+    st.warning("Title placeholder")
     st.stop()
 
 active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
@@ -45,7 +45,7 @@ except Exception as e:
     st.stop()
 
 # Supervisor info
-st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
+st.markdown("### 🧑‍⚕️ CT Responsible Party")
 SITE_LIST_FILE = "site_list.csv"
 
 if os.path.exists(SITE_LIST_FILE):
@@ -101,7 +101,7 @@ for protocol in active_protocols:
         finished_protocols.append(protocol)
 
 # Submit
-if st.button("📨 Submit Attestation"):
+if st.button("📨 Submit Confirmation"):
     if not name or not site:
         st.error("Please enter your name and site.")
         st.stop()
@@ -125,12 +125,12 @@ if st.button("📨 Submit Attestation"):
         df_log = pd.concat([existing, df_log], ignore_index=True)
 
     df_log.to_csv(ATTEST_LOG, index=False)
-    st.success("Your attestation has been recorded.")
+    st.success("Your confirmation has been recorded.")
 
     # Email content
-    recipients = ["sean.chinery@atlantichealth.org"]
-    sender = "AMG CT Protocol Chief"
-    subject = f"Protocol Attestation Submitted by {name}"
+    recipients = ["sean.chinery@atlantichealth.org", "edward.levy@atlantichealth.org"]
+    sender = "AMG CT Protocol Changes Made"
+    subject = f"Protocol Changes/Confirmation Submitted by {name}"
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     unchecked = [p for p in active_protocols if p not in finished_protocols]
