@@ -2,69 +2,86 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(
-    page_title="Choose Rows and Columns",
-    layout="wide",
-    initial_sidebar_state="auto"
-)
-
-st.title("🔧 Choose Rows, Columns, and Describe Changes")
+title = "📋 Choose Rows and Columns"
+st.set_page_config(page_title=title, layout="wide")
+st.title(title)
 
 EXCEL_FILE = "protocol_sections.xlsx"
-ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
+SELECTION_FILE = "protocol_row_col_map.csv"
 ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
 
+if not os.path.exists(EXCEL_FILE):
+    st.error("Excel file not found.")
+    st.stop()
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
     st.warning("Please select protocols on the home page first.")
     st.stop()
 
 active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
-protocols = active_df["Protocol"].tolist()
+active_protocols = active_df["Protocol"].tolist()
 
-try:
-    xl = pd.ExcelFile(EXCEL_FILE)
-except Exception as e:
-    st.error(f"Failed to read Excel file: {e}")
-    st.stop()
+xl = pd.ExcelFile(EXCEL_FILE)
 
-rowcol_entries = []
+all_selections = []
 
-for protocol in protocols:
-    st.markdown(f"---\n### 📄 {protocol}")
+descriptions = {}
 
+for protocol in active_protocols:
+    st.markdown(f"---\n### {protocol}")
     df = xl.parse(protocol)
-    if df.empty:
-        st.warning(f"No data found in {protocol} sheet.")
-        continue
 
-    st.dataframe(df)
-
-    row_indices = st.multiselect(
-        f"Select rows for {protocol}", options=list(df.index), default=list(df.index[-20:]), key=f"rows_{protocol}"
+    # Let user optionally rename columns from a selected row
+    rename_row = st.number_input(
+        f"Optional: Pick a row number to rename columns for {protocol}",
+        min_value=0,
+        max_value=len(df) - 1,
+        value=0,
+        step=1,
+        key=f"row_input_{protocol}"
     )
 
-    columns = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns), default=[df.columns[i] for i in [0, 2,3,6, 8,9, 11, 13, 15] if i < len(df.columns)], key=f"cols_{protocol}"
+    if st.button(f"Use row {rename_row} as header for {protocol}", key=f"use_row_{protocol}"):
+        new_names = df.iloc[rename_row].astype(str).tolist()
+        df.columns = new_names
+        df = df.iloc[rename_row + 1:].reset_index(drop=True)
+        st.success(f"Renamed columns for {protocol} using row {rename_row}")
+
+    selected_rows = st.multiselect(
+        f"Select rows for {protocol}",
+        options=list(df.index),
+        default=list(df.index[-3:]),
+        key=f"rows_{protocol}"
     )
 
-    rename_dict = {}
-    for col in columns:
-        new_name = st.text_input(f"Rename '{col}' in {protocol} (optional)", value=col, key=f"rename_{protocol}_{col}")
-        rename_dict[col] = new_name
+    selected_columns = st.multiselect(
+        f"Select columns for {protocol}",
+        options=list(df.columns),
+        default=list(df.columns),
+        key=f"cols_{protocol}"
+    )
 
-    description = st.text_area(f"Describe the protocol change for {protocol}", key=f"desc_{protocol}")
+    # Let user rename columns
+    col_renames = {}
+    st.markdown("#### Rename Selected Columns")
+    for col in selected_columns:
+        new_name = st.text_input(f"Rename column '{col}'", value=col, key=f"rename_{protocol}_{col}")
+        col_renames[col] = new_name
 
-    for row in row_indices:
-        for col in columns:
-            rowcol_entries.append({
+    # Add description
+    description = st.text_area(f"Optional: Description of changes for {protocol}", key=f"desc_{protocol}")
+    descriptions[protocol] = description
+
+    for row in selected_rows:
+        for col in selected_columns:
+            all_selections.append({
                 "Protocol": protocol,
                 "RowIndex": row,
                 "OriginalColumn": col,
-                "RenamedColumn": rename_dict[col],
+                "RenamedColumn": col_renames[col],
                 "Description": description
             })
 
-if st.button("💾 Save Changes"):
-    df_all = pd.DataFrame(rowcol_entries)
-    df_all.to_csv(ROWCOL_SELECTION_FILE, index=False)
-    st.success("Changes saved successfully.")
+if st.button("💾 Save Selections"):
+    selection_df = pd.DataFrame(all_selections)
+    selection_df.to_csv(SELECTION_FILE, index=False)
+    st.success("Selections saved successfully.")
