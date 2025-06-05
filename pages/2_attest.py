@@ -46,7 +46,16 @@ except Exception as e:
 
 # Supervisor info
 st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
-site = st.selectbox("Select your site:", ["MMC", "Overlook", "AMG", "MountianSide"])
+SITE_LIST_FILE = "site_list.csv"
+
+if os.path.exists(SITE_LIST_FILE):
+    site_df = pd.read_csv(SITE_LIST_FILE)
+    site_options = site_df["Site"].dropna().unique().tolist()
+else:
+    site_options = ["MMC", "Overlook"]  # Fallback
+
+site = st.selectbox("Select your site:", site_options)
+
 name = st.text_input("Your name:")
 
 st.markdown("### 📋 Review and confirm protocol changes below.")
@@ -119,8 +128,8 @@ if st.button("📨 Submit Attestation"):
     st.success("Your attestation has been recorded.")
 
     # Email content
-    recipients = ["sean.chinery@atlantichealth.org", "dummy@example.com"]
-    sender = "your.email@gmail.com"
+    recipients = ["sean.chinery@atlantichealth.org"]
+    sender = "AMG CT Protocol Chief"
     subject = f"Protocol Attestation Submitted by {name}"
 
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
