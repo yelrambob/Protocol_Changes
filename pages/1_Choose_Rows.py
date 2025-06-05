@@ -3,6 +3,25 @@ import pandas as pd
 import os
 from collections import Counter
 
+# Load your app state or use a file flag (e.g., 'locked.flag')
+LOCK_FILE = "locked.flag"
+
+# Lock toggle logic
+if os.path.exists(LOCK_FILE):
+    st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
+    password = st.text_input("Enter password to unlock:", type="password")
+    if password == "yourpassword":  # <-- Change this to your real password
+        os.remove(LOCK_FILE)
+        st.success("Unlocked. You may now make changes.")
+        st.experimental_rerun()
+    else:
+        st.stop()
+else:
+    if st.button("🔒 Lock selections (password required to unlock)"):
+        open(LOCK_FILE, "w").close()
+        st.success("Selections locked.")
+        st.experimental_rerun()
+
 # Streamlit page config
 st.set_page_config(page_title="📋 Choose Rows and Columns", layout="wide")
 st.title("📋 Choose Rows and Columns")
