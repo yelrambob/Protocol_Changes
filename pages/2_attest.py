@@ -3,6 +3,9 @@ import pandas as pd
 import datetime
 from PIL import Image
 from collections import Counter
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import os
 import storage
 from Streamlit_App_Rewrite import EXCEL_FILE, SHEET_IMAGES_DIR
@@ -15,7 +18,7 @@ st.set_page_config(
 
 st.title("✅ Protocol Attestation")
 
-# Load active protocols from Supabase
+# Load active protocols
 active_df = storage.get_active_protocols()
 if active_df.empty or "protocol" not in active_df.columns:
     st.warning("Please select protocols on the home page.")
@@ -26,7 +29,7 @@ if not active_protocols:
     st.warning("No protocols selected.")
     st.stop()
 
-# Load row/col map from Supabase
+# Load row/column mapping
 rowcol_df = storage.get_row_col_map()
 
 # Load Excel workbook
@@ -36,7 +39,7 @@ except Exception as e:
     st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-# Supervisor Info
+# Supervisor info
 st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
 try:
     site_list = storage.get_site_list()
@@ -47,7 +50,7 @@ site = st.selectbox("Select your site:", site_list)
 name = st.text_input("Your full name:")
 description = st.text_area("Optional notes about these protocol changes:")
 
-# Protocol Review and Confirmation
+# Protocol confirmations
 st.markdown("### 📋 Review and confirm protocol changes below.")
 finished_protocols = []
 
@@ -105,16 +108,17 @@ for protocol in active_protocols:
     if checked:
         finished_protocols.append(protocol)
 
-# Submit
+# Submit and send email
 if st.button("📨 Submit Attestation"):
     if not name or not site:
         st.error("Please enter your name and site.")
         st.stop()
 
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = {
         "name": name,
         "site": site,
-        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "timestamp": timestamp,
         "protocols_reviewed": ", ".join(active_protocols),
         "protocols_completed": ", ".join(finished_protocols),
         "description": description
@@ -125,3 +129,38 @@ if st.button("📨 Submit Attestation"):
         st.success("Your attestation has been recorded.")
     except Exception as e:
         st.error(f"Failed to save attestation: {e}")
+        st.stop()
+
+    # ✅ Email notification
+    recipients = ["sean.chinery@atlantichealth.org"]
+    sender = "your.email@gmail.com"
+    subject = f"Protocol Attestation Submitted by {name}"
+    unchecked = [p for p in active_protocols if p not in finished_protocols]
+
+    body_lines = [
+        f"Supervisor: {name}",
+        f"Site: {site}",
+        f"Timestamp: {timestamp}",
+        "",
+        f"Notes: {description if description else 'None'}",
+        "",
+        "✅ Completed Protocols:"
+    ]
+    body_lines += [f"  {p}" for p in finished_protocols] if finished_protocols else ["  None"]
+    body_lines += ["", "❌ Not Marked Complete:"]
+    body_lines += [f"  {p}" for p in unchecked] if unchecked else ["  None"]
+
+    msg = MIMEMultipart()
+    msg["From"] = sender
+    msg["To"] = ", ".join(recipients)
+    msg["Subject"] = subject
+    msg.attach(MIMEText("\n".join(body_lines), "plain"))
+
+    try:
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login("sean.chinery@gmail.com", "agwv sdua yywu lqmr")
+            server.sendmail(sender, recipients, msg.as_string())
+        st.info("Confirmation email sent.")
+    except Exception as e:
+        st.warning(f"Failed to send email: {e}")
