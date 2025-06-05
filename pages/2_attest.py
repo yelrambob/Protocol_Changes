@@ -77,7 +77,13 @@ for protocol in active_protocols:
     display_cols = list(rename_dict.keys())
 
     # Filter and rename
-    df_display = df.loc[selected_rows, display_cols].rename(columns=rename_dict)
+    valid_rows = [i for i in selected_rows if i in df.index]
+    if not valid_rows:
+        st.warning(f"No matching rows found in {protocol}. Skipping.")
+        continue
+    
+    df_display = df.loc[valid_rows, display_cols].rename(columns=rename_dict)
+
 
     if df_display.columns.duplicated().any():
         st.error(f"Duplicate renamed columns found in {protocol}. Please ensure all renamed columns are unique.")
