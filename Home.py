@@ -3,14 +3,15 @@ import pandas as pd
 import os
 import urllib.parse
 
-EXCEL_FILE = "protocol_sections.xlsx"
-ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
-BASE_ATTEST_URL = "https://protocolchanges.streamlit.app/Attest?protocol="  # Update to match your app URL
+# Import shared path constants
+from Streamlit_App_Rewrite import EXCEL_FILE, ACTIVE_PROTOCOLS_FILE
+
+BASE_ATTEST_URL = "https://protocolchanges.streamlit.app/Attest?protocol="  # Adjust as needed
 
 st.set_page_config(page_title="CT Protocol Attestations", layout="wide")
 st.title("📋 CT Protocol Attestation Center")
 
-## --- Admin section to choose changed sheets ---
+# --- Admin section to choose changed sheets ---
 st.sidebar.header("Admin Controls")
 st.sidebar.markdown("Select which protocols have been updated.")
 
@@ -21,21 +22,23 @@ except FileNotFoundError:
     st.error(f"Excel file '{EXCEL_FILE}' not found.")
     st.stop()
 
-# Load previously selected protocols if available
+# Load previously selected protocols
 if os.path.exists(ACTIVE_PROTOCOLS_FILE):
     saved = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
     default_selection = saved["Protocol"].tolist()
 else:
     default_selection = []
 
-selected_protocols = st.sidebar.multiselect("Select Changed Protocols", sheet_names, default=default_selection)
+selected_protocols = st.sidebar.multiselect(
+    "Select Changed Protocols", sheet_names, default=default_selection
+)
 
-# Save active protocols list
+# Save selected protocols
 if st.sidebar.button("✅ Save Active Protocols"):
     pd.DataFrame({"Protocol": selected_protocols}).to_csv(ACTIVE_PROTOCOLS_FILE, index=False)
     st.sidebar.success("Saved. The homepage will now show links for selected protocols.")
 
-# --- Main homepage: Show available protocols ---
+# --- Main homepage: Show selected protocols ---
 st.markdown("### 🔽 Protocols Available for Review & Attestation")
 
 if not selected_protocols:
@@ -44,5 +47,4 @@ else:
     for proto in selected_protocols:
         encoded = urllib.parse.quote(proto)
         attest_link = f"{BASE_ATTEST_URL}{encoded}"
-        #st.markdown(f"- [**{proto}** → Attest here]({attest_link})")
-
+        st.markdown(f"- [**{proto}** → Attest here]({attest_link})")
