@@ -1,70 +1,100 @@
 import streamlit as st
 import pandas as pd
+import os
 import storage
-from Streamlit_App_Rewrite import EXCEL_FILE
+from Streamlit_App_Rewrite import EXCEL_FILE, LOCK_FILE
 
-st.set_page_config(page_title="Choose Rows and Columns", layout="wide")
-st.title("🧩 Choose Rows and Columns for Protocols")
+st.set_page_config(
+    page_title="Choose Rows and Columns",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+st.title("🎩 Choose Rows and Columns")
+
+# 🔒 Lock system
+if os.path.exists(LOCK_FILE):
+    st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
+    password = st.text_input("Enter password to unlock:", type="password")
+    if password == "changeme":
+        os.remove(LOCK_FILE)
+        st.success("Unlocked. You may now make changes.")
+        st.experimental_rerun()
+    else:
+        st.stop()
+else:
+    if st.button("🔒 Lock selections (password required to unlock)"):
+        open(LOCK_FILE, "w").close()
+        st.success("Selections locked.")
+        st.experimental_rerun()
 
 # Load active protocols
 active_df = storage.get_active_protocols()
-if active_df.empty or "protocol" not in active_df.columns:
-    st.warning("Active protocols file missing. Please select protocols first.")
+if active_df.empty:
+    st.warning("Please select protocols on the Home page first.")
     st.stop()
 
 active_protocols = active_df["protocol"].dropna().tolist()
-if not active_protocols:
-    st.info("No protocols selected.")
-    st.stop()
 
-# Load workbook
+# Load Excel file
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
 except Exception as e:
-    st.error(f"Error reading Excel file: {e}")
+    st.error(f"Failed to read Excel file: {e}")
     st.stop()
+
+# Load saved row/col selections
+saved_df = storage.get_row_col_map()
+saved_df.columns = [c.lower() for c in saved_df.columns]  # Ensure case-insensitive match
 
 rowcol_data = []
 
-st.markdown("This tool lets you choose which rows and columns to save for each protocol.")
-
 for protocol in active_protocols:
     st.markdown(f"---\n### 📄 {protocol}")
-
     try:
         df = xl.parse(protocol)
     except Exception as e:
-        st.warning(f"Error reading sheet '{protocol}': {e}")
+        st.error(f"Failed to load sheet for {protocol}: {e}")
         continue
 
-    if df.empty:
-        st.warning("This sheet is empty.")
-        continue
+    st.dataframe(df, use_container_width=True)
 
+    # Default selections
+    saved_protocol = saved_df[saved_df["protocol"] == protocol] if "protocol" in saved_df.columns else pd.DataFrame()
+
+    default_rename_row = int(saved_protocol["rename_row"].iloc[0]) if not saved_protocol.empty else 0
     rename_row = st.number_input(
-        f"Row to rename columns (0-indexed):", min_value=0, max_value=len(df)-1,
-        value=0, key=f"rename_{protocol}"
+        f"Select the row number to rename columns for {protocol}:",
+        min_value=0, max_value=len(df)-1, value=default_rename_row, step=1, key=f"rename_{protocol}"
     )
 
-    raw_headers = df.iloc[rename_row].astype(str).tolist()
-    df.columns = raw_headers
-    df = df.iloc[rename_row + 1:].reset_index(drop=True)
+    # Rename headers and truncate DataFrame
+    new_headers = df.iloc[int(rename_row)].astype(str).tolist()
+    df.columns = new_headers
+    df = df.iloc[int(rename_row) + 1:].reset_index(drop=True)
 
-    selected_cols = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns),
-        default=list(df.columns[:3]), key=f"cols_{protocol}"
-    )
+    default_rows = saved_protocol["row_index"].dropna().astype(int).unique().tolist() if "row_index" in saved_protocol else []
+    default_cols = saved_protocol["original_column"].dropna().unique().tolist() if "original_column" in saved_protocol else []
+
+    safe_default_rows = [r for r in default_rows if r in df.index]
+    safe_default_cols = [c for c in default_cols if c in df.columns]
 
     selected_rows = st.multiselect(
-        f"Select rows for {protocol} (by index):", options=list(df.index[:20]),
-        default=list(df.index[:3]), key=f"rows_{protocol}"
+        f"Select rows for {protocol}",
+        options=list(df.index),
+        default=safe_default_rows or list(df.index),
+        key=f"rows_{protocol}"
     )
 
-    description = st.text_area(f"Optional notes for {protocol}:", key=f"desc_{protocol}")
+    selected_cols = st.multiselect(
+        f"Select columns for {protocol}",
+        options=list(df.columns),
+        default=safe_default_cols or list(df.columns),
+        key=f"cols_{protocol}"
+    )
 
-    if not selected_cols or not selected_rows:
-        st.info(f"⚠️ No data selected for {protocol}. This will not be saved.")
-        continue
+    default_note = saved_protocol["description"].iloc[0] if not saved_protocol.empty and "description" in saved_protocol.columns else ""
+    notes = st.text_area(f"Optional notes for {protocol}", value=default_note, key=f"notes_{protocol}")
 
     for row in selected_rows:
         for col in selected_cols:
@@ -73,22 +103,20 @@ for protocol in active_protocols:
                 "row_index": row,
                 "original_column": col,
                 "rename_row": rename_row,
-                "description": description
+                "description": notes
             })
 
-# Save selections (ensure Streamlit captures final state)
-if st.button("📊 Save Selections"):
-    st.session_state.update()
+st.session_state.update()  # ensure all widget states are committed
 
+if st.button("📊 Save Selections"):
+    st.session_state.update()  # capture widget states *after* final interactions
     if rowcol_data:
         df_out = pd.DataFrame(rowcol_data)
         df_out = df_out[df_out["row_index"].notna() & df_out["original_column"].notna()]
-        df_out = df_out.sort_values(by=["protocol", "row_index", "original_column"])
-
         try:
             storage.set_row_col_map(df_out)
             st.success("Selections saved to Supabase.")
         except Exception as e:
             st.error(f"Failed to save selections: {e}")
     else:
-        st.warning("Nothing selected to save. Please make sure at least one row and column are picked.")
+        st.warning("No data to save.")
