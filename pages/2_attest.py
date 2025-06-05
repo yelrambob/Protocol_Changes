@@ -6,6 +6,7 @@ from PIL import Image
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from collections import Counter
 
 st.set_page_config(
     page_title="Protocol Attestation",
@@ -49,7 +50,8 @@ if os.path.exists(SITE_LIST_FILE):
 else:
     site_list = ["MMC", "Overlook"]
 
-site = st.selectbox("Select your site:", site_list)\nname = st.text_input("Your full name:")
+site = st.selectbox("Select your site:", site_list)
+name = st.text_input("Your full name:")
 
 # Optional overall description
 description = st.text_area("Optional notes about these protocol changes:")
@@ -74,7 +76,6 @@ for protocol in active_protocols:
         continue
 
     raw_headers = df.iloc[rename_row].astype(str).tolist()
-    from collections import Counter
     name_counter = Counter()
     new_headers = []
     for h in raw_headers:
