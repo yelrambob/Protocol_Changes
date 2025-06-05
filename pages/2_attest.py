@@ -102,6 +102,11 @@ for protocol in active_protocols:
     if os.path.exists(img_path):
         st.image(Image.open(img_path), caption=f"{protocol} snapshot", use_column_width=True)
 
+    # Optional per-protocol notes from Choose Rows
+    protocol_notes = selection["Description"].dropna().unique().tolist()
+    if protocol_notes:
+        st.markdown(f"**Notes:** {protocol_notes[0]}")
+
     checked = st.checkbox(f"I confirm {protocol} has been updated", key=f"{protocol}_done")
     if checked:
         finished_protocols.append(protocol)
