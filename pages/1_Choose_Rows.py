@@ -83,9 +83,15 @@ for protocol in active_protocols:
     selected_rows = st.multiselect(
         f"Select rows for {protocol}", options=list(df.index), default=safe_default_rows or list(df.index), key=f"rows_{protocol}"
     )
+        # Validate default column names
+    safe_default_cols = [col for col in default_cols if col in df.columns]
     selected_cols = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns), default=default_cols or list(df.columns), key=f"cols_{protocol}"
+        f"Select columns for {protocol}",
+        options=list(df.columns),
+        default=safe_default_cols or list(df.columns),
+        key=f"cols_{protocol}"
     )
+
 
     default_note = saved_protocol["Description"].iloc[0] if not saved_protocol.empty else ""
     notes = st.text_area(f"Optional notes for {protocol}", value=default_note, key=f"notes_{protocol}")
