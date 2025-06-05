@@ -57,7 +57,7 @@ for protocol in active_protocols:
     selected_rows = st.multiselect(
         f"Select rows for {protocol}",
         options=list(df.index),
-        default=list(df.index[-12:]),
+        default=list(df.index),
         key=f"rows_{protocol}"
     )
 
