@@ -44,7 +44,7 @@ for protocol in protocols:
     )
 
     columns = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns), default=[df.columns[i] for i in [1, 3, 4, 7, 9, 10, 12, 14] if i < len(df.columns)], key=f"cols_{protocol}"
+        f"Select columns for {protocol}", options=list(df.columns), default=[df.columns[i] for i in [2, 4, 5, 8, 10, 11, 13, 15] if i < len(df.columns)], key=f"cols_{protocol}"
     )
 
     rename_dict = {}
