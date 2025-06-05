@@ -12,7 +12,7 @@ st.set_page_config(
 
 st.title("🎩 Choose Rows and Columns")
 
-# Lock/unlock system
+# 🔒 Lock system
 if os.path.exists(LOCK_FILE):
     st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
     password = st.text_input("Enter password to unlock:", type="password")
@@ -28,7 +28,7 @@ else:
         st.success("Selections locked.")
         st.experimental_rerun()
 
-# Load active protocols from Supabase
+# Load active protocols
 active_df = storage.get_active_protocols()
 if active_df.empty:
     st.warning("Please select protocols on the Home page first.")
@@ -43,8 +43,9 @@ except Exception as e:
     st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-# Load saved row/col map
+# Load saved row/col selections
 saved_df = storage.get_row_col_map()
+saved_df.columns = [c.lower() for c in saved_df.columns]  # Ensure case-insensitive match
 
 rowcol_data = []
 
@@ -58,7 +59,8 @@ for protocol in active_protocols:
 
     st.dataframe(df, use_container_width=True)
 
-    saved_protocol = saved_df[saved_df["protocol"] == protocol]
+    # Default selections
+    saved_protocol = saved_df[saved_df["protocol"] == protocol] if "protocol" in saved_df.columns else pd.DataFrame()
 
     default_rename_row = int(saved_protocol["rename_row"].iloc[0]) if not saved_protocol.empty else 0
     rename_row = st.number_input(
@@ -66,26 +68,32 @@ for protocol in active_protocols:
         min_value=0, max_value=len(df)-1, value=default_rename_row, step=1, key=f"rename_{protocol}"
     )
 
+    # Rename headers and truncate DataFrame
     new_headers = df.iloc[int(rename_row)].astype(str).tolist()
     df.columns = new_headers
     df = df.iloc[int(rename_row) + 1:].reset_index(drop=True)
 
-    default_rows = saved_protocol["row_index"].dropna().astype(int).unique().tolist()
-    default_cols = saved_protocol["original_column"].dropna().unique().tolist()
+    default_rows = saved_protocol["row_index"].dropna().astype(int).unique().tolist() if "row_index" in saved_protocol else []
+    default_cols = saved_protocol["original_column"].dropna().unique().tolist() if "original_column" in saved_protocol else []
 
     safe_default_rows = [r for r in default_rows if r in df.index]
     safe_default_cols = [c for c in default_cols if c in df.columns]
 
     selected_rows = st.multiselect(
-        f"Select rows for {protocol}", options=list(df.index),
-        default=safe_default_rows or list(df.index), key=f"rows_{protocol}"
-    )
-    selected_cols = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns),
-        default=safe_default_cols or list(df.columns), key=f"cols_{protocol}"
+        f"Select rows for {protocol}",
+        options=list(df.index),
+        default=safe_default_rows or list(df.index),
+        key=f"rows_{protocol}"
     )
 
-    default_note = saved_protocol["description"].iloc[0] if not saved_protocol.empty else ""
+    selected_cols = st.multiselect(
+        f"Select columns for {protocol}",
+        options=list(df.columns),
+        default=safe_default_cols or list(df.columns),
+        key=f"cols_{protocol}"
+    )
+
+    default_note = saved_protocol["description"].iloc[0] if not saved_protocol.empty and "description" in saved_protocol.columns else ""
     notes = st.text_area(f"Optional notes for {protocol}", value=default_note, key=f"notes_{protocol}")
 
     for row in selected_rows:
@@ -98,7 +106,7 @@ for protocol in active_protocols:
                 "description": notes
             })
 
-# Save all selections to Supabase
+# Save all selections
 if st.button("📊 Save Selections"):
     if rowcol_data:
         df_out = pd.DataFrame(rowcol_data)
