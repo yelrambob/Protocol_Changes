@@ -2,100 +2,59 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Choose Rows & Columns", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Choose Rows and Columns", layout="wide")
 
 EXCEL_FILE = "protocol_sections.xlsx"
-ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
-ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
+OUTPUT_FILE = "protocol_row_col_map.csv"
 
-st.title("📝 Choose Rows and Columns for Attestation")
-st.markdown("Select which rows and columns to display per protocol. You can also rename columns as they’ll appear on the attestation page.")
+st.title("📝 Choose Rows and Columns")
 
-# Load active protocols
-if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
-    st.warning("Please go to the Home page to select protocols first.")
+if not os.path.exists(EXCEL_FILE):
+    st.error("Excel file not found.")
     st.stop()
 
-active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
-active_protocols = active_df["Protocol"].tolist()
-
-# Load Excel workbook
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
-except FileNotFoundError:
-    st.error(f"Excel file '{EXCEL_FILE}' not found.")
+except Exception as e:
+    st.error(f"Error reading Excel file: {e}")
     st.stop()
+
+sheet_names = xl.sheet_names
+selected_protocols = st.multiselect("Select protocol sheets to modify:", sheet_names)
 
 rowcol_map = []
 
-for protocol in active_protocols:
-    st.markdown(f"---\n### 📄 {protocol}")
-    if protocol not in xl.sheet_names:
-        st.warning(f"'{protocol}' not found in Excel.")
-        continue
-
+for protocol in selected_protocols:
+    st.markdown(f"---\n### {protocol}")
     df = xl.parse(protocol)
+
     if df.empty:
-        st.info("No data in this sheet.")
+        st.warning(f"{protocol} is empty.")
         continue
-    # Show description for this protocol
-    description = rowcol_df[rowcol_df["Protocol"] == protocol]["Description"].dropna().unique()
-    if description.size > 0:
-    st.markdown(f"**Change Description:** {description[0]}")
 
-    
-    st.dataframe(df, use_container_width=True)
+    default_rows = list(df.index[-3:])  # last 3 rows
+    selected_rows = st.multiselect(f"Rows to include for {protocol}:", df.index.tolist(), default=default_rows, key=f"rows_{protocol}")
 
-    # 📌 Description of changes
-    description = st.text_area(f"📝 Describe changes for {protocol}", key=f"{protocol}_desc")
+    selected_columns = st.multiselect(f"Columns to include for {protocol}:", df.columns.tolist(), default=list(df.columns), key=f"cols_{protocol}")
 
-    # Default selections
-    default_raw = [0] + list(df.index[-3:])
-    default_indices = sorted(set(i for i in default_raw if i in df.index))
-    label_map = {i: f"Row {i+1}" for i in df.index}
-    reverse_map = {v: k for k, v in label_map.items()}
+    col_renames = {}
+    for col in selected_columns:
+        new_name = st.text_input(f"Rename '{col}' in {protocol}:", value=col, key=f"rename_{protocol}_{col}")
+        col_renames[col] = new_name
 
-    select_all = st.checkbox(f"Select all rows for {protocol}", key=f"all_{protocol}")
-    selected_labels = st.multiselect(
-        f"Select rows for {protocol}",
-        options=[label_map[i] for i in df.index],
-        default=[label_map[i] for i in df.index] if select_all else [label_map[i] for i in default_indices],
-        key=f"rows_{protocol}"
-    )
-    selected_indices = [reverse_map[label] for label in selected_labels]
+    description = st.text_area(f"Optional description of changes for {protocol}:", key=f"desc_{protocol}")
 
-    # Column selection + rename
-    all_cols = list(df.columns)
-    selected_cols = st.multiselect(f"Select columns to show for {protocol}", options=all_cols, default=all_cols)
-    renamed_cols = {}
-    for col in selected_cols:
-        new_name = st.text_input(f"Rename '{col}'", value=col, key=f"{protocol}_{col}_rename")
-        renamed_cols[col] = new_name
-
-    # Append all mappings with description
-    for row in selected_indices:
-        for col in selected_cols:
+    for row in selected_rows:
+        for col in selected_columns:
             rowcol_map.append({
                 "Protocol": protocol,
                 "RowIndex": row,
                 "OriginalColumn": col,
-                "RenamedColumn": renamed_cols[col],
-                "Description": description.strip()
+                "RenamedColumn": col_renames[col],
+                "Description": description
             })
 
-#the save section that saves everything to the csv file
-if st.button("💾 Save Selections"):
-    df_map = pd.DataFrame(rowcol_map)
-    df_map.to_csv("protocol_row_col_map.csv", index=False)
-    st.success("Saved! The attestation view has been updated.")
-
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    df_map = pd.DataFrame(rowcol_map)
-    df_map["Timestamp"] = timestamp
-    
-    # Save full history to change_log.csv
-    with open("change_log.csv", "a", newline="") as f:
-        df_map.to_csv(f, header=not os.path.exists("change_log.csv"), index=False)
-
-
+if st.button("💾 Save Changes"):
+    df_output = pd.DataFrame(rowcol_map)
+    df_output.to_csv(OUTPUT_FILE, index=False)
+    st.success("Changes saved.")
