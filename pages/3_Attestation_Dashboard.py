@@ -20,18 +20,23 @@ if not os.path.exists(ATTEST_LOG):
 # Load data
 log_df = pd.read_csv(ATTEST_LOG)
 
+# Keep only the necessary columns
+columns_to_keep = ["Site", "Name", "Timestamp", "Protocols Completed"]
+columns_from_log = [col for col in log_df.columns if col in columns_to_keep or col not in ["Site", "Name", "Timestamp", "Protocols Completed", "Protocols Reviewed"]]
+filtered_display_df = log_df[columns_to_keep + columns_from_log]
+
 # Search and filter controls
 with st.expander("🔍 Filter Options", expanded=True):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        selected_site = st.multiselect("Filter by site:", options=log_df["Site"].unique())
+        selected_site = st.multiselect("Filter by site:", options=filtered_display_df["Site"].unique())
     with col2:
-        selected_name = st.multiselect("Filter by name:", options=log_df["Name"].unique())
+        selected_name = st.multiselect("Filter by name:", options=filtered_display_df["Name"].unique())
     with col3:
         date_range = st.date_input("Filter by date range:", [])
 
-    filtered_df = log_df.copy()
+    filtered_df = filtered_display_df.copy()
     if selected_site:
         filtered_df = filtered_df[filtered_df["Site"].isin(selected_site)]
     if selected_name:
