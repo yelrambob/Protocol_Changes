@@ -53,7 +53,19 @@ for protocol in active_protocols:
     )
 
     raw_headers = df.iloc[rename_row].astype(str).tolist()
-    df.columns = raw_headers
+
+    from collections import Counter
+    counts = Counter(raw_headers)
+    seen = {}
+    
+    def make_unique(col):
+        if counts[col] > 1:
+            count = seen.get(col, 0) + 1
+            seen[col] = count
+            return f"{col}_{count}"
+        return col
+    
+    df.columns = [make_unique(c) for c in raw_headers]
     df = df.iloc[rename_row + 1:].reset_index(drop=True)
 
     default_cols = existing["original_column"].unique().tolist() if not existing.empty else list(df.columns[:3])
