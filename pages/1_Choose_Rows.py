@@ -106,10 +106,13 @@ for protocol in active_protocols:
                 "description": notes
             })
 
-# Save all selections
+st.session_state.update()  # ensure all widget states are committed
+
 if st.button("📊 Save Selections"):
+    st.session_state.update()  # capture widget states *after* final interactions
     if rowcol_data:
         df_out = pd.DataFrame(rowcol_data)
+        df_out = df_out[df_out["row_index"].notna() & df_out["original_column"].notna()]
         try:
             storage.set_row_col_map(df_out)
             st.success("Selections saved to Supabase.")
