@@ -13,13 +13,13 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-st.title("🧩 Choose Rows and Columns")
+st.title("🎩 Choose Rows and Columns")
 
 # Lock system
 if os.path.exists(LOCK_FILE):
     st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
     password = st.text_input("Enter password to unlock:", type="password")
-    if password == "123":  # Replace with your password
+    if password == "changeme":  # Replace with your password
         os.remove(LOCK_FILE)
         st.success("Unlocked. You may now make changes.")
         st.experimental_rerun()
@@ -53,7 +53,6 @@ except Exception:
     saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
     st.warning("⚠️ Could not read saved selections. Starting fresh.")
 
-
 for protocol in active_protocols:
     st.markdown(f"---\n### 📄 {protocol}")
     try:
@@ -64,27 +63,31 @@ for protocol in active_protocols:
 
     st.dataframe(df, use_container_width=True)
 
-    # Select rename row (to extract headers from)
+    saved_protocol = saved_df[saved_df["Protocol"] == protocol]
+
+    # Restore rename row
+    default_rename_row = int(saved_protocol["RenameRow"].iloc[0]) if not saved_protocol.empty else 0
     rename_row = st.number_input(
         f"Select the row number to rename columns for {protocol}:",
-        min_value=0, max_value=len(df)-1, value=0, step=1, key=f"rename_{protocol}"
+        min_value=0, max_value=len(df)-1, value=default_rename_row, step=1, key=f"rename_{protocol}"
     )
 
-    # Get renamed columns
     new_headers = df.iloc[int(rename_row)].astype(str).tolist()
     df.columns = new_headers
     df = df.iloc[int(rename_row) + 1:].reset_index(drop=True)
 
-    # Select rows and columns
+    default_rows = saved_protocol["RowIndex"].dropna().astype(int).unique().tolist()
+    default_cols = saved_protocol["OriginalColumn"].dropna().unique().tolist()
+
     selected_rows = st.multiselect(
-        f"Select rows for {protocol}", options=list(df.index), default=list(df.index), key=f"rows_{protocol}"
+        f"Select rows for {protocol}", options=list(df.index), default=default_rows or list(df.index), key=f"rows_{protocol}"
     )
     selected_cols = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns), default=list(df.columns), key=f"cols_{protocol}"
+        f"Select columns for {protocol}", options=list(df.columns), default=default_cols or list(df.columns), key=f"cols_{protocol}"
     )
 
-    # Optional notes for this protocol
-    notes = st.text_area(f"Optional notes for {protocol}", key=f"notes_{protocol}")
+    default_note = saved_protocol["Description"].iloc[0] if not saved_protocol.empty else ""
+    notes = st.text_area(f"Optional notes for {protocol}", value=default_note, key=f"notes_{protocol}")
 
     for row in selected_rows:
         for col in selected_cols:
@@ -96,8 +99,7 @@ for protocol in active_protocols:
                 "Description": notes
             })
 
-# Save
-if st.button("💾 Save Selections"):
+if st.button("📏 Save Selections"):
     if rowcol_data:
         df_out = pd.DataFrame(rowcol_data)
         df_out.to_csv(ROWCOL_SELECTION_FILE, index=False)
