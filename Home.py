@@ -1,17 +1,15 @@
 import streamlit as st
 import pandas as pd
-import os
 import urllib.parse
+import storage  # Supabase-based data handler
+from Streamlit_App_Rewrite import EXCEL_FILE  # still used for local xlsx file
 
-# Import shared path constants
-from Streamlit_App_Rewrite import EXCEL_FILE, ACTIVE_PROTOCOLS_FILE
-
-BASE_ATTEST_URL = "https://protocolchanges.streamlit.app/Attest?protocol="  # Adjust as needed
+BASE_ATTEST_URL = "https://protocolchanges.streamlit.app/Attest?protocol="
 
 st.set_page_config(page_title="CT Protocol Attestations", layout="wide")
 st.title("📋 CT Protocol Attestation Center")
 
-# --- Admin section to choose changed sheets ---
+# --- Admin sidebar to choose changed sheets ---
 st.sidebar.header("Admin Controls")
 st.sidebar.markdown("Select which protocols have been updated.")
 
@@ -22,23 +20,27 @@ except FileNotFoundError:
     st.error(f"Excel file '{EXCEL_FILE}' not found.")
     st.stop()
 
-# Load previously selected protocols
-if os.path.exists(ACTIVE_PROTOCOLS_FILE):
-    saved = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
-    default_selection = saved["Protocol"].tolist()
-else:
+# Load saved active protocols from Supabase
+try:
+    saved_df = storage.get_active_protocols()
+    default_selection = saved_df["protocol"].tolist() if not saved_df.empty else []
+except Exception as e:
+    st.error(f"Could not load active protocols: {e}")
     default_selection = []
 
 selected_protocols = st.sidebar.multiselect(
     "Select Changed Protocols", sheet_names, default=default_selection
 )
 
-# Save selected protocols
+# Save to Supabase
 if st.sidebar.button("✅ Save Active Protocols"):
-    pd.DataFrame({"Protocol": selected_protocols}).to_csv(ACTIVE_PROTOCOLS_FILE, index=False)
-    st.sidebar.success("Saved. The homepage will now show links for selected protocols.")
+    try:
+        storage.set_active_protocols(selected_protocols)
+        st.sidebar.success("Saved to Supabase. The homepage will now show links.")
+    except Exception as e:
+        st.sidebar.error(f"Error saving: {e}")
 
-# --- Main homepage: Show selected protocols ---
+# --- Show protocol links ---
 st.markdown("### 🔽 Protocols Available for Review & Attestation")
 
 if not selected_protocols:
