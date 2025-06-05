@@ -19,9 +19,11 @@ if not os.path.exists(ATTEST_LOG):
 
 # Load data
 log_df = pd.read_csv(ATTEST_LOG)
+log_df.reset_index(inplace=True)  # Add row numbers as index column
+log_df.rename(columns={"index": "Row Number"}, inplace=True)
 
 # Keep only necessary columns
-columns_to_keep = ["Site", "Name", "Timestamp", "Protocols Completed"]
+columns_to_keep = ["Row Number", "Site", "Name", "Timestamp", "Protocols Completed"]
 columns_in_log = log_df.columns.tolist()
 additional_columns = [col for col in columns_in_log if col not in columns_to_keep and col != "Protocols Reviewed"]
 filtered_display_df = log_df[columns_to_keep + additional_columns]
@@ -72,11 +74,12 @@ with st.expander("📁 Export", expanded=False):
 with st.expander("🗑️ Delete Entries", expanded=False):
     if not filtered_df.empty:
         selected_to_delete = st.multiselect(
-            "Select timestamps to delete:",
-            options=filtered_df["Timestamp"].dropna().tolist()
+            "Select row numbers to delete:",
+            options=filtered_df["Row Number"].tolist()
         )
         if st.button("Delete Selected"):
-            updated_df = log_df[~log_df["Timestamp"].isin(selected_to_delete)]
+            updated_df = log_df[~log_df["Row Number"].isin(selected_to_delete)]
+            updated_df.drop(columns=["Row Number"], inplace=True, errors='ignore')
             updated_df.to_csv(ATTEST_LOG, index=False)
             st.success("Selected entries deleted. Please refresh the page.")
     else:
