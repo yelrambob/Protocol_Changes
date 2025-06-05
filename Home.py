@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import urllib.parse
 import storage  # Supabase-based data handler
-from Streamlit_App_Rewrite import EXCEL_FILE  # still used for local xlsx file
+from Streamlit_App_Rewrite import EXCEL_FILE  # used for reading local Excel sheet
 
 BASE_ATTEST_URL = "https://protocolchanges.streamlit.app/Attest?protocol="
 
@@ -13,6 +13,7 @@ st.title("📋 CT Protocol Attestation Center")
 st.sidebar.header("Admin Controls")
 st.sidebar.markdown("Select which protocols have been updated.")
 
+# Load available sheet names
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
     sheet_names = xl.sheet_names
@@ -20,7 +21,7 @@ except FileNotFoundError:
     st.error(f"Excel file '{EXCEL_FILE}' not found.")
     st.stop()
 
-# Load saved active protocols from Supabase
+# Load saved protocols from Supabase
 try:
     saved_df = storage.get_active_protocols()
     default_selection = saved_df["protocol"].tolist() if not saved_df.empty else []
@@ -28,11 +29,12 @@ except Exception as e:
     st.error(f"Could not load active protocols: {e}")
     default_selection = []
 
+# Allow selection of protocols
 selected_protocols = st.sidebar.multiselect(
     "Select Changed Protocols", sheet_names, default=default_selection
 )
 
-# Save to Supabase
+# Save button
 if st.sidebar.button("✅ Save Active Protocols"):
     try:
         storage.set_active_protocols(selected_protocols)
@@ -40,7 +42,18 @@ if st.sidebar.button("✅ Save Active Protocols"):
     except Exception as e:
         st.sidebar.error(f"Error saving: {e}")
 
-# --- Show protocol links ---
+# Clear row/column selections button
+if st.sidebar.button("🗑️ Clear Saved Row/Column Settings for Selected Protocols"):
+    if selected_protocols:
+        try:
+            storage.clear_row_col_map_for(selected_protocols)
+            st.sidebar.success("Row/column settings cleared for selected protocols.")
+        except Exception as e:
+            st.sidebar.error(f"Error clearing selections: {e}")
+    else:
+        st.sidebar.info("No protocols selected to clear.")
+
+# --- Show protocol links for attestation ---
 st.markdown("### 🔽 Protocols Available for Review & Attestation")
 
 if not selected_protocols:
