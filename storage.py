@@ -54,3 +54,7 @@ def set_site_list(sites: list):
     supabase.table("site_list").delete().neq("site", "").execute()
     data = [{"site": s} for s in sites]
     supabase.table("site_list").insert(data).execute()
+
+def clear_row_col_map_for(protocols):
+    for p in protocols:
+        supabase.table("row_col_map").delete().eq("protocol", p).execute()
