@@ -19,7 +19,7 @@ st.title("🧩 Choose Rows and Columns")
 if os.path.exists(LOCK_FILE):
     st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
     password = st.text_input("Enter password to unlock:", type="password")
-    if password == "changeme":  # Replace with your password
+    if password == "123":  # Replace with your password
         os.remove(LOCK_FILE)
         st.success("Unlocked. You may now make changes.")
         st.experimental_rerun()
