@@ -72,9 +72,7 @@ for protocol in active_protocols:
         continue
 
     selected_rows = selection["RowIndex"].unique().tolist()
-    col_map = selection[["OriginalColumn", "RenamedColumn"]].drop_duplicates()
-    rename_dict = dict(zip(col_map["OriginalColumn"], col_map["RenamedColumn"]))
-    display_cols = list(rename_dict.keys())
+    display_cols = selection["OriginalColumn"].unique().tolist()
 
     # Filter and rename
     # Filter valid row indices
@@ -90,7 +88,7 @@ for protocol in active_protocols:
         continue
     
     # Now display the filtered DataFrame
-    df_display = df.loc[valid_rows, valid_cols].rename(columns=rename_dict)
+    df_display = df.loc[valid_rows, valid_cols]
     
     # Prevent duplicated column error
     if df_display.columns.duplicated().any():
