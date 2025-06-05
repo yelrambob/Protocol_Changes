@@ -10,7 +10,7 @@ BASE_ATTEST_URL = "https://protocolchanges.streamlit.app/Attest?protocol="  # Up
 st.set_page_config(page_title="CT Protocol Attestations", layout="wide")
 st.title("📋 CT Protocol Attestation Center")
 
-# --- Admin section to choose changed sheets ---
+## --- Admin section to choose changed sheets ---
 st.sidebar.header("Admin Controls")
 st.sidebar.markdown("Select which protocols have been updated.")
 
