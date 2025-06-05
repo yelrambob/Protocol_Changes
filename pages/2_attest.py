@@ -46,8 +46,8 @@ except Exception as e:
 
 # Supervisor info
 st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
-site = st.selectbox("Select your site:", ["MMC", "Overlook"])
-name = st.text_input("Your full name:")
+site = st.selectbox("Select your site:", ["MMC", "Overlook", "AMG", "MountianSide"])
+name = st.text_input("Your name:")
 
 st.markdown("### 📋 Review and confirm protocol changes below.")
 finished_protocols = []
