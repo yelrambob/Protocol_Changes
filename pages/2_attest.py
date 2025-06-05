@@ -77,12 +77,28 @@ for protocol in active_protocols:
     display_cols = list(rename_dict.keys())
 
     # Filter and rename
+    # Filter valid row indices
     valid_rows = [i for i in selected_rows if i in df.index]
     if not valid_rows:
-        st.warning(f"No matching rows found in {protocol}. Skipping.")
+        st.warning(f"No matching rows in data for {protocol}. Skipping.")
         continue
     
-    df_display = df.loc[valid_rows, display_cols].rename(columns=rename_dict)
+    # Filter valid display columns
+    valid_cols = [col for col in display_cols if col in df.columns]
+    if not valid_cols:
+        st.warning(f"No matching columns in data for {protocol}. Skipping.")
+        continue
+    
+    # Now display the filtered DataFrame
+    df_display = df.loc[valid_rows, valid_cols].rename(columns=rename_dict)
+    
+    # Prevent duplicated column error
+    if df_display.columns.duplicated().any():
+        st.error(f"Duplicate renamed columns found in {protocol}.")
+        continue
+    
+    st.dataframe(df_display, use_container_width=True)
+
 
 
     if df_display.columns.duplicated().any():
