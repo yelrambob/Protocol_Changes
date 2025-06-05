@@ -49,8 +49,10 @@ if os.path.exists(SITE_LIST_FILE):
 else:
     site_list = ["MMC", "Overlook"]
 
-site = st.selectbox("Select your site:", site_list)
-name = st.text_input("Your full name:")
+site = st.selectbox("Select your site:", site_list)\nname = st.text_input("Your full name:")
+
+# Optional overall description
+description = st.text_area("Optional notes about these protocol changes:")
 
 # Protocol confirmation
 st.markdown("### 📋 Review and confirm protocol changes below.")
@@ -117,7 +119,8 @@ if st.button("📨 Submit Attestation"):
         "Site": site,
         "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "Protocols Reviewed": protocol_list,
-        "Protocols Completed": done_list
+        "Protocols Completed": done_list,
+        "Description": description
     }
 
     df_log = pd.DataFrame([log_entry])
@@ -139,6 +142,8 @@ if st.button("📨 Submit Attestation"):
         f"Supervisor: {name}",
         f"Site: {site}",
         f"Timestamp: {timestamp}",
+        "",
+        f"Notes: {description if description else 'None'}",
         "",
         "✅ Completed Protocols:",
     ]
