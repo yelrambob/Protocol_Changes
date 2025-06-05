@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+from collections import Counter
 
 title = "📋 Choose Rows and Columns"
 st.set_page_config(page_title=title, layout="wide")
@@ -29,7 +30,6 @@ for protocol in active_protocols:
     st.markdown(f"---\n### {protocol}")
     df = xl.parse(protocol)
 
-    # Optionally use a specific row for renaming columns
     rename_row = st.number_input(
         f"Use this row to rename columns for {protocol}:",
         min_value=0,
@@ -38,11 +38,20 @@ for protocol in active_protocols:
         step=1,
         key=f"row_input_{protocol}"
     )
-    new_names = df.iloc[rename_row].astype(str).tolist()
+    new_names_raw = df.iloc[rename_row].astype(str).tolist()
+
+    # Force uniqueness by appending suffix to duplicates
+    name_counter = Counter()
+    new_names = []
+    for name in new_names_raw:
+        name_counter[name] += 1
+        new_name = f"{name}_{name_counter[name]}" if name_counter[name] > 1 else name
+        new_names.append(new_name)
+
     df.columns = new_names
     df = df.iloc[rename_row + 1:].reset_index(drop=True)
 
-    # Preview the filtered DataFrame
+    # Show full preview
     st.dataframe(df, use_container_width=True)
 
     selected_rows = st.multiselect(
@@ -59,7 +68,6 @@ for protocol in active_protocols:
         key=f"cols_{protocol}"
     )
 
-    # Add description
     description = st.text_area(f"Optional: Description of changes for {protocol}", key=f"desc_{protocol}")
     descriptions[protocol] = description
 
@@ -69,7 +77,7 @@ for protocol in active_protocols:
                 "Protocol": protocol,
                 "RowIndex": row,
                 "OriginalColumn": col,
-                "RenamedColumn": col,  # now fixed to be same as original col
+                "RenamedColumn": col,
                 "Description": description
             })
 
