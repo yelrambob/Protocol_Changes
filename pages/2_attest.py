@@ -29,8 +29,9 @@ if not active_protocols:
     st.warning("No protocols selected.")
     st.stop()
 
-# Load row/column mapping
+# Load row/column selection map
 rowcol_df = storage.get_row_col_map()
+rowcol_df.columns = [c.lower() for c in rowcol_df.columns]
 
 # Load Excel workbook
 try:
@@ -39,13 +40,16 @@ except Exception as e:
     st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-# Supervisor info
-st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
-try:
-    site_list = storage.get_site_list()
-except:
+# Load site list from local CSV (not Supabase)
+SITE_LIST_FILE = "site_list.csv"
+if os.path.exists(SITE_LIST_FILE):
+    site_df = pd.read_csv(SITE_LIST_FILE)
+    site_list = site_df["Site"].dropna().unique().tolist()
+else:
     site_list = ["MMC", "Overlook"]
 
+# Supervisor input
+st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
 site = st.selectbox("Select your site:", site_list)
 name = st.text_input("Your full name:")
 description = st.text_area("Optional notes about these protocol changes:")
@@ -108,7 +112,7 @@ for protocol in active_protocols:
     if checked:
         finished_protocols.append(protocol)
 
-# Submit and send email
+# Submit and email
 if st.button("📨 Submit Attestation"):
     if not name or not site:
         st.error("Please enter your name and site.")
@@ -131,7 +135,7 @@ if st.button("📨 Submit Attestation"):
         st.error(f"Failed to save attestation: {e}")
         st.stop()
 
-    # ✅ Email notification
+    # Send confirmation email
     recipients = ["sean.chinery@atlantichealth.org"]
     sender = "your.email@gmail.com"
     subject = f"Protocol Attestation Submitted by {name}"
