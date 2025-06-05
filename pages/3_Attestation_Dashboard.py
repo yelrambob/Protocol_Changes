@@ -20,19 +20,20 @@ if not os.path.exists(ATTEST_LOG):
 # Load data
 log_df = pd.read_csv(ATTEST_LOG)
 
-# Keep only the necessary columns
+# Keep only necessary columns
 columns_to_keep = ["Site", "Name", "Timestamp", "Protocols Completed"]
-columns_from_log = [col for col in log_df.columns if col in columns_to_keep or col not in ["Site", "Name", "Timestamp", "Protocols Completed", "Protocols Reviewed"]]
-filtered_display_df = log_df[columns_to_keep + columns_from_log]
+columns_in_log = log_df.columns.tolist()
+additional_columns = [col for col in columns_in_log if col not in columns_to_keep and col != "Protocols Reviewed"]
+filtered_display_df = log_df[columns_to_keep + additional_columns]
 
 # Search and filter controls
 with st.expander("🔍 Filter Options", expanded=True):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        selected_site = st.multiselect("Filter by site:", options=filtered_display_df["Site"].unique())
+        selected_site = st.multiselect("Filter by site:", options=filtered_display_df["Site"].dropna().unique())
     with col2:
-        selected_name = st.multiselect("Filter by name:", options=filtered_display_df["Name"].unique())
+        selected_name = st.multiselect("Filter by name:", options=filtered_display_df["Name"].dropna().unique())
     with col3:
         date_range = st.date_input("Filter by date range:", [])
 
@@ -44,10 +45,10 @@ with st.expander("🔍 Filter Options", expanded=True):
     if date_range and len(date_range) == 2:
         start_date, end_date = date_range
         filtered_df = filtered_df[
-            pd.to_datetime(filtered_df["Timestamp"]) >= pd.to_datetime(start_date)
+            pd.to_datetime(filtered_df["Timestamp"], errors='coerce') >= pd.to_datetime(start_date)
         ]
         filtered_df = filtered_df[
-            pd.to_datetime(filtered_df["Timestamp"]) <= pd.to_datetime(end_date)
+            pd.to_datetime(filtered_df["Timestamp"], errors='coerce') <= pd.to_datetime(end_date)
         ]
 
 # Display table
@@ -72,7 +73,7 @@ with st.expander("🗑️ Delete Entries", expanded=False):
     if not filtered_df.empty:
         selected_to_delete = st.multiselect(
             "Select timestamps to delete:",
-            options=filtered_df["Timestamp"].tolist()
+            options=filtered_df["Timestamp"].dropna().tolist()
         )
         if st.button("Delete Selected"):
             updated_df = log_df[~log_df["Timestamp"].isin(selected_to_delete)]
