@@ -2,80 +2,69 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.set_page_config(page_title="Choose Rows and Columns", layout="wide")
+st.set_page_config(
+    page_title="Choose Rows and Columns",
+    layout="wide",
+    initial_sidebar_state="auto"
+)
+
+st.title("🔧 Choose Rows, Columns, and Describe Changes")
 
 EXCEL_FILE = "protocol_sections.xlsx"
-OUTPUT_FILE = "protocol_row_col_map.csv"
+ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
+ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
 
-st.title("✏️ Choose Rows and Columns")
-
-if not os.path.exists(EXCEL_FILE):
-    st.error("Excel file not found.")
+if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
+    st.warning("Please select protocols on the home page first.")
     st.stop()
+
+active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
+protocols = active_df["Protocol"].tolist()
 
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
 except Exception as e:
-    st.error(f"Error reading Excel file: {e}")
+    st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-sheet_names = xl.sheet_names
-selected_protocols = st.multiselect("Select protocol sheets to modify:", sheet_names)
+rowcol_entries = []
 
-rowcol_map = []
+for protocol in protocols:
+    st.markdown(f"---\n### 📄 {protocol}")
 
-for protocol in selected_protocols:
-    st.markdown(f"---\n## {protocol}")
     df = xl.parse(protocol)
-
     if df.empty:
-        st.warning(f"{protocol} is empty.")
+        st.warning(f"No data found in {protocol} sheet.")
         continue
 
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(df)
 
-    # Row selection
-    default_rows = list(df.index[-3:]) if len(df) >= 3 else list(df.index)
-    selected_rows = st.multiselect(
-        f"Select rows from {protocol}:",
-        df.index.tolist(),
-        default=default_rows,
-        key=f"rows_{protocol}"
+    row_indices = st.multiselect(
+        f"Select rows for {protocol}", options=list(df.index), default=list(df.index[-3:]), key=f"rows_{protocol}"
     )
 
-    # Column selection
-    selected_columns = st.multiselect(
-        f"Select columns from {protocol}:",
-        df.columns.tolist(),
-        default=list(df.columns),
-        key=f"cols_{protocol}"
+    columns = st.multiselect(
+        f"Select columns for {protocol}", options=list(df.columns), default=list(df.columns), key=f"cols_{protocol}"
     )
 
-    # Column renaming
-    col_renames = {}
-    for col in selected_columns:
-        new_col = st.text_input(f"Rename '{col}' in {protocol}:", value=col, key=f"rename_{protocol}_{col}")
-        col_renames[col] = new_col
+    rename_dict = {}
+    for col in columns:
+        new_name = st.text_input(f"Rename '{col}' in {protocol} (optional)", value=col, key=f"rename_{protocol}_{col}")
+        rename_dict[col] = new_name
 
-    # Description
-    description = st.text_area(f"Optional description of changes for {protocol}:", key=f"desc_{protocol}")
+    description = st.text_area(f"Describe the protocol change for {protocol}", key=f"desc_{protocol}")
 
-    # Filtered table preview
-    filtered_df = df.loc[selected_rows, selected_columns].rename(columns=col_renames)
-    st.markdown("### Preview of Selected Table:")
-    st.dataframe(filtered_df, use_container_width=True)
-
-    for row in selected_rows:
-        for col in selected_columns:
-            rowcol_map.append({
+    for row in row_indices:
+        for col in columns:
+            rowcol_entries.append({
                 "Protocol": protocol,
                 "RowIndex": row,
                 "OriginalColumn": col,
-                "RenamedColumn": col_renames[col],
+                "RenamedColumn": rename_dict[col],
                 "Description": description
             })
 
 if st.button("💾 Save Changes"):
-    df_output = pd.DataFrame(rowcol_map)
-    df_output.to_csv(OUTPUT_FILE, index=False)
+    df_all = pd.DataFrame(rowcol_entries)
+    df_all.to_csv(ROWCOL_SELECTION_FILE, index=False)
     st.success("Changes saved successfully.")
