@@ -38,7 +38,12 @@ for protocol in active_protocols:
     if df.empty:
         st.info("No data in this sheet.")
         continue
+    # Show description for this protocol
+    description = rowcol_df[rowcol_df["Protocol"] == protocol]["Description"].dropna().unique()
+    if description.size > 0:
+    st.markdown(f"**Change Description:** {description[0]}")
 
+    
     st.dataframe(df, use_container_width=True)
 
     # 📌 Description of changes
@@ -83,4 +88,14 @@ if st.button("💾 Save Selections"):
     df_map = pd.DataFrame(rowcol_map)
     df_map.to_csv("protocol_row_col_map.csv", index=False)
     st.success("Saved! The attestation view has been updated.")
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    df_map = pd.DataFrame(rowcol_map)
+    df_map["Timestamp"] = timestamp
+    
+    # Save full history to change_log.csv
+    with open("change_log.csv", "a", newline="") as f:
+        df_map.to_csv(f, header=not os.path.exists("change_log.csv"), index=False)
+
 
