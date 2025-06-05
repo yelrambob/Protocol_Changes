@@ -19,12 +19,12 @@ from Streamlit_App_Rewrite import (
 )
 
 st.set_page_config(
-    page_title="Protocol Attestation",
+    page_title="Protocol Changes and Confirmation",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-st.title("✅ Protocol Attestation")
+st.title("✅ Protocol Changes and Confirmation of Change")
 
 # 🔍 DEBUG BLOCK
 st.sidebar.subheader("Debug Info")
