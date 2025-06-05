@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from collections import Counter
 
-# Import shared paths
+### Import shared paths
 from Streamlit_App_Rewrite import (
     EXCEL_FILE,
     ROWCOL_SELECTION_FILE,
