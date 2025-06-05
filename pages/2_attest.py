@@ -22,6 +22,7 @@ SHEET_IMAGES_DIR = "sheet_images"
 
 st.title("✅ Protocol Attestation")
 
+# Load active protocols
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
     st.warning("Please select protocols on the home page.")
     st.stop()
@@ -29,12 +30,14 @@ if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
 active_df = pd.read_csv(ACTIVE_PROTOCOLS_FILE)
 active_protocols = active_df["Protocol"].tolist()
 
+# Load row/column selections
 if not os.path.exists(ROWCOL_SELECTION_FILE):
     st.warning("No row/column selections found. Please complete 'Choose Rows and Columns' first.")
     st.stop()
 
 rowcol_df = pd.read_csv(ROWCOL_SELECTION_FILE)
 
+# Load Excel workbook
 try:
     xl = pd.ExcelFile(EXCEL_FILE)
 except Exception as e:
@@ -42,20 +45,15 @@ except Exception as e:
     st.stop()
 
 # Supervisor info
-st.markdown("### 🧐️ Attesting Supervisor Info")
+st.markdown("### 🧑‍⚕️ Attesting Supervisor Info")
 site = st.selectbox("Select your site:", ["MMC", "Overlook"])
 name = st.text_input("Your full name:")
 
-# Protocol confirmation
 st.markdown("### 📋 Review and confirm protocol changes below.")
 finished_protocols = []
 
 for protocol in active_protocols:
     st.markdown(f"---\n#### 📄 {protocol}")
-
-    if protocol not in xl.sheet_names:
-        st.warning(f"{protocol} not found in Excel file.")
-        continue
 
     df = xl.parse(protocol)
     selection = rowcol_df[rowcol_df["Protocol"] == protocol]
@@ -64,11 +62,12 @@ for protocol in active_protocols:
         st.info("No matching data found.")
         continue
 
-    selected_rows = selection["RowIndex"].dropna().astype(int).unique().tolist()
+    selected_rows = selection["RowIndex"].unique().tolist()
     col_map = selection[["OriginalColumn", "RenamedColumn"]].drop_duplicates()
     rename_dict = dict(zip(col_map["OriginalColumn"], col_map["RenamedColumn"]))
     display_cols = list(rename_dict.keys())
 
+    # Filter and rename
     df_display = df.loc[selected_rows, display_cols].rename(columns=rename_dict)
 
     if df_display.columns.duplicated().any():
@@ -77,20 +76,22 @@ for protocol in active_protocols:
 
     st.dataframe(df_display, use_container_width=True)
 
-    # Show description
-    description = selection["Description"].dropna().unique()
-    if len(description) > 0:
-        st.info(f"**Description:** {description[0]}")
-
     # Show image if available
     img_path = os.path.join(SHEET_IMAGES_DIR, f"{protocol}.png")
     if os.path.exists(img_path):
         st.image(Image.open(img_path), caption=f"{protocol} snapshot", use_column_width=True)
 
+    # Display description
+    description = selection["Description"].iloc[0] if "Description" in selection.columns else ""
+    if description:
+        st.info(f"**Change Description:** {description}")
+
+    # Completion checkbox
     checked = st.checkbox(f"I confirm {protocol} has been updated", key=f"{protocol}_done")
     if checked:
         finished_protocols.append(protocol)
 
+# Submit
 if st.button("📨 Submit Attestation"):
     if not name or not site:
         st.error("Please enter your name and site.")
@@ -98,15 +99,14 @@ if st.button("📨 Submit Attestation"):
 
     protocol_list = ", ".join(active_protocols)
     done_list = ", ".join(finished_protocols)
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    unchecked = [p for p in active_protocols if p not in finished_protocols]
 
+    # Log submission
     log_entry = {
         "Name": name,
         "Site": site,
-        "Timestamp": timestamp,
-        "Protocols Reviewed": protocol_list,
-        "Protocols Completed": done_list
+        "Timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "Protocols Attested": protocol_list,
+        "Protocols Marked Complete": done_list
     }
 
     df_log = pd.DataFrame([log_entry])
@@ -118,10 +118,13 @@ if st.button("📨 Submit Attestation"):
     df_log.to_csv(ATTEST_LOG, index=False)
     st.success("Your attestation has been recorded.")
 
-    # Send email
+    # Email content
     recipients = ["sean.chinery@atlantichealth.org", "dummy@example.com"]
     sender = "your.email@gmail.com"
     subject = f"Protocol Attestation Submitted by {name}"
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    unchecked = [p for p in active_protocols if p not in finished_protocols]
 
     body_lines = [
         f"Supervisor: {name}",
@@ -130,9 +133,13 @@ if st.button("📨 Submit Attestation"):
         "",
         "✅ Completed Protocols:"
     ]
-    body_lines += [f"  {p}" for p in finished_protocols] if finished_protocols else ["  None"]
-    body_lines += ["", "❌ Not Marked Complete:"]
-    body_lines += [f"  {p}" for p in unchecked] if unchecked else ["  None"]
+    body_lines += [f"{p}" for p in finished_protocols] if finished_protocols else ["None"]
+
+    body_lines += [
+        "",
+        "❌ Not Marked Complete:"
+    ]
+    body_lines += [f"{p}" for p in unchecked] if unchecked else ["None"]
 
     body = "\n".join(body_lines)
 
@@ -145,7 +152,7 @@ if st.button("📨 Submit Attestation"):
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login("your.email@gmail.com", "agwv sdua yywu lqmr")
+            server.login("sean.chinery@gmail.com", "agwv sdua yywu lqmr")
             server.sendmail(sender, recipients, msg.as_string())
         st.info("Confirmation email sent.")
     except Exception as e:
