@@ -52,19 +52,28 @@ for protocol in active_protocols:
         value=default_rename, key=f"rename_{protocol}"
     )
 
-    raw_headers = df.iloc[rename_row].astype(str).tolist()
+    # Attempt to use the selected rename_row as headers
+    raw_headers = df.iloc[rename_row].astype(str).fillna("").tolist()
 
+    # Warn if most headers are empty
+    non_empty_headers = [h for h in raw_headers if h.strip() != ""]
+    if len(non_empty_headers) < len(raw_headers) * 0.5:
+        st.warning(f"⚠️ Selected rename row ({rename_row}) for {protocol} appears mostly empty. You may need to pick a different row.")
+
+    # Deduplicate column names
     from collections import Counter
     counts = Counter(raw_headers)
     seen = {}
-    
+
     def make_unique(col):
+        if col.strip() == "":
+            col = "unnamed"
         if counts[col] > 1:
             count = seen.get(col, 0) + 1
             seen[col] = count
             return f"{col}_{count}"
         return col
-    
+
     df.columns = [make_unique(c) for c in raw_headers]
     df = df.iloc[rename_row + 1:].reset_index(drop=True)
 
@@ -82,8 +91,11 @@ for protocol in active_protocols:
     description = st.text_area("Optional notes:", value=existing_desc, key=f"desc_{protocol}")
 
     if selected_cols and selected_rows:
-        df_preview = df.loc[selected_rows, selected_cols]
-        st.dataframe(df_preview, use_container_width=True)
+        try:
+            df_preview = df.loc[selected_rows, selected_cols]
+            st.dataframe(df_preview, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Could not display preview table: {e}")
 
         for row in selected_rows:
             for col in selected_cols:
