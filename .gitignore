@@ -23,3 +23,6 @@ echo "protocol_row_col_map.csv" >> .gitignore
 git rm --cached protocol_row_col_map.csv
 git commit -m "Exclude protocol_row_col_map.csv from Git"
 git push
+
+# Ignore runtime Streamlit data
+/data/
