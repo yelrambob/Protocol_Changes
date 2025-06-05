@@ -23,28 +23,27 @@ active_protocols = active_df["Protocol"].tolist()
 xl = pd.ExcelFile(EXCEL_FILE)
 
 all_selections = []
-
 descriptions = {}
 
 for protocol in active_protocols:
     st.markdown(f"---\n### {protocol}")
     df = xl.parse(protocol)
 
-    # Let user optionally rename columns from a selected row
+    # Optionally use a specific row for renaming columns
     rename_row = st.number_input(
-        f"Optional: Pick a row number to rename columns for {protocol}",
+        f"Use this row to rename columns for {protocol}:",
         min_value=0,
         max_value=len(df) - 1,
         value=0,
         step=1,
         key=f"row_input_{protocol}"
     )
+    new_names = df.iloc[rename_row].astype(str).tolist()
+    df.columns = new_names
+    df = df.iloc[rename_row + 1:].reset_index(drop=True)
 
-    if st.button(f"Use row {rename_row} as header for {protocol}", key=f"use_row_{protocol}"):
-        new_names = df.iloc[rename_row].astype(str).tolist()
-        df.columns = new_names
-        df = df.iloc[rename_row + 1:].reset_index(drop=True)
-        st.success(f"Renamed columns for {protocol} using row {rename_row}")
+    # Preview the filtered DataFrame
+    st.dataframe(df, use_container_width=True)
 
     selected_rows = st.multiselect(
         f"Select rows for {protocol}",
@@ -60,13 +59,6 @@ for protocol in active_protocols:
         key=f"cols_{protocol}"
     )
 
-    # Let user rename columns
-    col_renames = {}
-    st.markdown("#### Rename Selected Columns")
-    for col in selected_columns:
-        new_name = st.text_input(f"Rename column '{col}'", value=col, key=f"rename_{protocol}_{col}")
-        col_renames[col] = new_name
-
     # Add description
     description = st.text_area(f"Optional: Description of changes for {protocol}", key=f"desc_{protocol}")
     descriptions[protocol] = description
@@ -77,7 +69,7 @@ for protocol in active_protocols:
                 "Protocol": protocol,
                 "RowIndex": row,
                 "OriginalColumn": col,
-                "RenamedColumn": col_renames[col],
+                "RenamedColumn": col,  # now fixed to be same as original col
                 "Description": description
             })
 
