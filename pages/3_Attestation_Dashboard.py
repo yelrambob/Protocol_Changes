@@ -22,11 +22,12 @@ log_df = pd.read_csv(ATTEST_LOG)
 log_df.reset_index(inplace=True)  # Add row numbers as index column
 log_df.rename(columns={"index": "Row Number"}, inplace=True)
 
-# Keep only necessary columns
-columns_to_keep = ["Row Number", "Site", "Name", "Timestamp", "Protocols Completed"]
-columns_in_log = log_df.columns.tolist()
-additional_columns = [col for col in columns_in_log if col not in columns_to_keep and col != "Protocols Reviewed"]
-filtered_display_df = log_df[columns_to_keep + additional_columns]
+# Determine renamed columns
+required_columns = ["Row Number", "Site", "Name", "Timestamp", "Protocols Completed"]
+renamed_columns = [col for col in log_df.columns if col not in required_columns and col != "Protocols Reviewed"]
+
+# Filtered display
+filtered_display_df = log_df[required_columns + renamed_columns]
 
 # Search and filter controls
 with st.expander("🔍 Filter Options", expanded=True):
