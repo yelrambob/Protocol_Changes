@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import csv
 
 EXCEL_FILE = "protocol_sections.xlsx"
 ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
@@ -17,9 +18,9 @@ st.title("🎩 Choose Rows and Columns")
 
 # Lock system
 if os.path.exists(LOCK_FILE):
-    st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
+    st.warning("\u26a0\ufe0f Protocol selections are locked. Unlock below to make changes.")
     password = st.text_input("Enter password to unlock:", type="password")
-    if password == "123":  # Replace with your password
+    if password == "changeme":  # Replace with your password
         os.remove(LOCK_FILE)
         st.success("Unlocked. You may now make changes.")
         st.experimental_rerun()
@@ -45,13 +46,25 @@ except Exception as e:
     st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-rowcol_data = []
-
-try:
-    saved_df = pd.read_csv(ROWCOL_SELECTION_FILE)
-except Exception:
+# Load existing saved data
+if not os.path.exists(ROWCOL_SELECTION_FILE) or os.path.getsize(ROWCOL_SELECTION_FILE) == 0:
     saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
-    st.warning("⚠️ Could not read saved selections. Starting fresh.")
+    st.warning("\u26a0\ufe0f No saved selections found or file is empty. Starting fresh.")
+else:
+    try:
+        with open(ROWCOL_SELECTION_FILE, "r") as f:
+            has_header = csv.Sniffer().has_header(f.read(1024))
+            f.seek(0)
+        if has_header:
+            saved_df = pd.read_csv(ROWCOL_SELECTION_FILE)
+        else:
+            saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
+            st.warning("\u26a0\ufe0f CSV has no header row. Starting fresh.")
+    except Exception as e:
+        st.error(f"Failed to read saved selections: {e}")
+        saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
+
+rowcol_data = []
 
 for protocol in active_protocols:
     st.markdown(f"---\n### 📄 {protocol}")
@@ -65,7 +78,6 @@ for protocol in active_protocols:
 
     saved_protocol = saved_df[saved_df["Protocol"] == protocol]
 
-    # Restore rename row
     default_rename_row = int(saved_protocol["RenameRow"].iloc[0]) if not saved_protocol.empty else 0
     rename_row = st.number_input(
         f"Select the row number to rename columns for {protocol}:",
@@ -80,18 +92,14 @@ for protocol in active_protocols:
     default_cols = saved_protocol["OriginalColumn"].dropna().unique().tolist()
 
     safe_default_rows = [r for r in default_rows if r in df.index]
+    safe_default_cols = [c for c in default_cols if c in df.columns]
+
     selected_rows = st.multiselect(
         f"Select rows for {protocol}", options=list(df.index), default=safe_default_rows or list(df.index), key=f"rows_{protocol}"
     )
-        # Validate default column names
-    safe_default_cols = [col for col in default_cols if col in df.columns]
     selected_cols = st.multiselect(
-        f"Select columns for {protocol}",
-        options=list(df.columns),
-        default=safe_default_cols or list(df.columns),
-        key=f"cols_{protocol}"
+        f"Select columns for {protocol}", options=list(df.columns), default=safe_default_cols or list(df.columns), key=f"cols_{protocol}"
     )
-
 
     default_note = saved_protocol["Description"].iloc[0] if not saved_protocol.empty else ""
     notes = st.text_area(f"Optional notes for {protocol}", value=default_note, key=f"notes_{protocol}")
@@ -106,10 +114,13 @@ for protocol in active_protocols:
                 "Description": notes
             })
 
-if st.button("📏 Save Selections"):
+if st.button("📊 Save Selections"):
     if rowcol_data:
         df_out = pd.DataFrame(rowcol_data)
-        df_out.to_csv(ROWCOL_SELECTION_FILE, index=False)
-        st.success("Selections saved successfully.")
+        if not df_out.empty:
+            df_out.to_csv(ROWCOL_SELECTION_FILE, index=False)
+            st.success("Selections saved successfully.")
+        else:
+            st.warning("Nothing to save — the table is empty.")
     else:
         st.warning("No data to save.")
