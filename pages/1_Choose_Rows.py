@@ -40,7 +40,7 @@ for protocol in protocols:
     st.dataframe(df)
 
     row_indices = st.multiselect(
-        f"Select rows for {protocol}", options=list(df.index), default=list(df.index[-3:]), key=f"rows_{protocol}"
+        f"Select rows for {protocol}", options=list(df.index), default=list(df.index[-10:2]), key=f"rows_{protocol}"
     )
 
     columns = st.multiselect(
