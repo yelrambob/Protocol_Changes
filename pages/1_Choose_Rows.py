@@ -79,8 +79,9 @@ for protocol in active_protocols:
     default_rows = saved_protocol["RowIndex"].dropna().astype(int).unique().tolist()
     default_cols = saved_protocol["OriginalColumn"].dropna().unique().tolist()
 
+    safe_default_rows = [r for r in default_rows if r in df.index]
     selected_rows = st.multiselect(
-        f"Select rows for {protocol}", options=list(df.index), default=default_rows or list(df.index), key=f"rows_{protocol}"
+        f"Select rows for {protocol}", options=list(df.index), default=safe_default_rows or list(df.index), key=f"rows_{protocol}"
     )
     selected_cols = st.multiselect(
         f"Select columns for {protocol}", options=list(df.columns), default=default_cols or list(df.columns), key=f"cols_{protocol}"
