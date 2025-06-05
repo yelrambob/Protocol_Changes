@@ -8,22 +8,26 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from collections import Counter
 
+# Load shared paths
+BASE_DIR = "data"
+os.makedirs(BASE_DIR, exist_ok=True)
+
+EXCEL_FILE = "protocol_sections.xlsx"
+ROWCOL_SELECTION_FILE = os.path.join(BASE_DIR, "protocol_row_col_map.csv")
+ACTIVE_PROTOCOLS_FILE = os.path.join(BASE_DIR, "active_protocols.csv")
+ATTEST_LOG = os.path.join(BASE_DIR, "attestation_log.csv")
+SHEET_IMAGES_DIR = "sheet_images"
+SITE_LIST_FILE = os.path.join(BASE_DIR, "site_list.csv")
+
 st.set_page_config(
     page_title="Protocol Attestation",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-EXCEL_FILE = "protocol_sections.xlsx"
-ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
-ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
-ATTEST_LOG = "attestation_log.csv"
-SHEET_IMAGES_DIR = "sheet_images"
-SITE_LIST_FILE = "site_list.csv"
-
 st.title("✅ Protocol Attestation")
 
-# Load data
+# Load active protocol list
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
     st.warning("Please select protocols on the home page.")
     st.stop()
@@ -53,10 +57,10 @@ else:
 site = st.selectbox("Select your site:", site_list)
 name = st.text_input("Your full name:")
 
-# Optional overall description
+# Optional notes
 description = st.text_area("Optional notes about these protocol changes:")
 
-# Protocol confirmation
+# Protocols review
 st.markdown("### 📋 Review and confirm protocol changes below.")
 finished_protocols = []
 
@@ -102,7 +106,6 @@ for protocol in active_protocols:
     if os.path.exists(img_path):
         st.image(Image.open(img_path), caption=f"{protocol} snapshot", use_column_width=True)
 
-    # Optional per-protocol notes from Choose Rows
     protocol_notes = selection["Description"].dropna().unique().tolist()
     if protocol_notes:
         st.markdown(f"**Notes:** {protocol_notes[0]}")
@@ -111,7 +114,7 @@ for protocol in active_protocols:
     if checked:
         finished_protocols.append(protocol)
 
-# Submit
+# Submission
 if st.button("📨 Submit Attestation"):
     if not name or not site:
         st.error("Please enter your name and site.")
@@ -151,7 +154,7 @@ if st.button("📨 Submit Attestation"):
         "",
         f"Notes: {description if description else 'None'}",
         "",
-        "✅ Completed Protocols:",
+        "✅ Completed Protocols:"
     ]
     body_lines += [f"  {p}" for p in finished_protocols] if finished_protocols else ["  None"]
     body_lines += ["", "❌ Not Marked Complete:"]
