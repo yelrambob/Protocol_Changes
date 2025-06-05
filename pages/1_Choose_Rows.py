@@ -7,7 +7,7 @@ st.set_page_config(page_title="Choose Rows and Columns", layout="wide")
 EXCEL_FILE = "protocol_sections.xlsx"
 OUTPUT_FILE = "protocol_row_col_map.csv"
 
-st.title("📝 Choose Rows and Columns")
+st.title("✏️ Choose Rows and Columns")
 
 if not os.path.exists(EXCEL_FILE):
     st.error("Excel file not found.")
@@ -25,24 +25,45 @@ selected_protocols = st.multiselect("Select protocol sheets to modify:", sheet_n
 rowcol_map = []
 
 for protocol in selected_protocols:
-    st.markdown(f"---\n### {protocol}")
+    st.markdown(f"---\n## {protocol}")
     df = xl.parse(protocol)
 
     if df.empty:
         st.warning(f"{protocol} is empty.")
         continue
 
-    default_rows = list(df.index[-3:])  # last 3 rows
-    selected_rows = st.multiselect(f"Rows to include for {protocol}:", df.index.tolist(), default=default_rows, key=f"rows_{protocol}")
+    st.dataframe(df, use_container_width=True)
 
-    selected_columns = st.multiselect(f"Columns to include for {protocol}:", df.columns.tolist(), default=list(df.columns), key=f"cols_{protocol}")
+    # Row selection
+    default_rows = list(df.index[-3:]) if len(df) >= 3 else list(df.index)
+    selected_rows = st.multiselect(
+        f"Select rows from {protocol}:",
+        df.index.tolist(),
+        default=default_rows,
+        key=f"rows_{protocol}"
+    )
 
+    # Column selection
+    selected_columns = st.multiselect(
+        f"Select columns from {protocol}:",
+        df.columns.tolist(),
+        default=list(df.columns),
+        key=f"cols_{protocol}"
+    )
+
+    # Column renaming
     col_renames = {}
     for col in selected_columns:
-        new_name = st.text_input(f"Rename '{col}' in {protocol}:", value=col, key=f"rename_{protocol}_{col}")
-        col_renames[col] = new_name
+        new_col = st.text_input(f"Rename '{col}' in {protocol}:", value=col, key=f"rename_{protocol}_{col}")
+        col_renames[col] = new_col
 
+    # Description
     description = st.text_area(f"Optional description of changes for {protocol}:", key=f"desc_{protocol}")
+
+    # Filtered table preview
+    filtered_df = df.loc[selected_rows, selected_columns].rename(columns=col_renames)
+    st.markdown("### Preview of Selected Table:")
+    st.dataframe(filtered_df, use_container_width=True)
 
     for row in selected_rows:
         for col in selected_columns:
@@ -57,4 +78,4 @@ for protocol in selected_protocols:
 if st.button("💾 Save Changes"):
     df_output = pd.DataFrame(rowcol_map)
     df_output.to_csv(OUTPUT_FILE, index=False)
-    st.success("Changes saved.")
+    st.success("Changes saved successfully.")
