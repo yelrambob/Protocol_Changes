@@ -137,7 +137,7 @@ if st.button("📨 Submit Attestation"):
     df_log.to_csv(ATTEST_LOG, index=False)
     st.success("Your attestation has been recorded.")
 
-    recipients = ["sean.chinery@atlantichealth.org","edward.levy@atlantichealth.org"]
+    recipients = ["sean.chinery@atlantichealth.org"]
     sender = "your.email@gmail.com"
     subject = f"Protocol Attestation Submitted by {name}"
 
