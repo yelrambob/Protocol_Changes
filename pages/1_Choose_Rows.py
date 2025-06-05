@@ -3,10 +3,14 @@ import pandas as pd
 import os
 import csv
 
+# Set up directory for persistent storage
+BASE_DIR = "data"
+os.makedirs(BASE_DIR, exist_ok=True)
+
 EXCEL_FILE = "protocol_sections.xlsx"
-ROWCOL_SELECTION_FILE = "protocol_row_col_map.csv"
-ACTIVE_PROTOCOLS_FILE = "active_protocols.csv"
-LOCK_FILE = "locked.flag"
+ROWCOL_SELECTION_FILE = os.path.join(BASE_DIR, "protocol_row_col_map.csv")
+ACTIVE_PROTOCOLS_FILE = os.path.join(BASE_DIR, "active_protocols.csv")
+LOCK_FILE = os.path.join(BASE_DIR, "locked.flag")
 
 st.set_page_config(
     page_title="Choose Rows and Columns",
@@ -16,11 +20,10 @@ st.set_page_config(
 
 st.title("🎩 Choose Rows and Columns")
 
-# Lock system
 if os.path.exists(LOCK_FILE):
-    st.warning("\u26a0\ufe0f Protocol selections are locked. Unlock below to make changes.")
+    st.warning("⚠️ Protocol selections are locked. Unlock below to make changes.")
     password = st.text_input("Enter password to unlock:", type="password")
-    if password == "changeme":  # Replace with your password
+    if password == "changeme":
         os.remove(LOCK_FILE)
         st.success("Unlocked. You may now make changes.")
         st.experimental_rerun()
@@ -32,7 +35,6 @@ else:
         st.success("Selections locked.")
         st.experimental_rerun()
 
-# Load active protocols
 if not os.path.exists(ACTIVE_PROTOCOLS_FILE):
     st.warning("Please select protocols on the Home page first.")
     st.stop()
@@ -46,10 +48,9 @@ except Exception as e:
     st.error(f"Failed to read Excel file: {e}")
     st.stop()
 
-# Load existing saved data
 if not os.path.exists(ROWCOL_SELECTION_FILE) or os.path.getsize(ROWCOL_SELECTION_FILE) == 0:
     saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
-    st.warning("\u26a0\ufe0f No saved selections found or file is empty. Starting fresh.")
+    st.warning("⚠️ No saved selections found or file is empty. Starting fresh.")
 else:
     try:
         with open(ROWCOL_SELECTION_FILE, "r") as f:
@@ -59,7 +60,7 @@ else:
             saved_df = pd.read_csv(ROWCOL_SELECTION_FILE)
         else:
             saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
-            st.warning("\u26a0\ufe0f CSV has no header row. Starting fresh.")
+            st.warning("⚠️ CSV has no header row. Starting fresh.")
     except Exception as e:
         st.error(f"Failed to read saved selections: {e}")
         saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
