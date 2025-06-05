@@ -145,7 +145,7 @@ if st.button("📨 Submit Attestation"):
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as server:
             server.starttls()
-            server.login("your.email@gmail.com", "your-app-password")
+            server.login("your.email@gmail.com", "agwv sdua yywu lqmr")
             server.sendmail(sender, recipients, msg.as_string())
         st.info("Confirmation email sent.")
     except Exception as e:
