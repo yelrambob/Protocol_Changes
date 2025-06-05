@@ -40,11 +40,11 @@ for protocol in protocols:
     st.dataframe(df)
 
     row_indices = st.multiselect(
-        f"Select rows for {protocol}", options=list(df.index), default=list(df.index[-10:2]), key=f"rows_{protocol}"
+        f"Select rows for {protocol}", options=list(df.index), default=list(df.index[-20:]), key=f"rows_{protocol}"
     )
 
     columns = st.multiselect(
-        f"Select columns for {protocol}", options=list(df.columns), default=list(df.columns), key=f"cols_{protocol}"
+        f"Select columns for {protocol}", options=list(df.columns), default=list(df.index[:1,3,4,7,9,10,12,14]), key=f"cols_{protocol}"
     )
 
     rename_dict = {}
