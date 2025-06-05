@@ -65,9 +65,6 @@ for protocol in active_protocols:
     except Exception as e:
         st.warning(f"Could not load sheet for {protocol}: {e}")
         continue
-
-    st.write(f"DEBUG: Loaded {len(rowcol_df)} row/col entries")
-    st.write(f"DEBUG: Selection for '{protocol}':", rowcol_df[rowcol_df["protocol"] == protocol])
     
     selection = rowcol_df[rowcol_df["protocol"] == protocol]
 
