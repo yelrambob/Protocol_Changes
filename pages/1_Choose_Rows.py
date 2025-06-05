@@ -26,12 +26,12 @@ except FileNotFoundError:
     st.error(f"Excel file '{EXCEL_FILE}' not found.")
     st.stop()
 
-selection_records = []
+rowcol_map = []
 
 for protocol in active_protocols:
     st.markdown(f"---\n### 📄 {protocol}")
     if protocol not in xl.sheet_names:
-        st.warning(f"'{protocol}' not found in the Excel file.")
+        st.warning(f"'{protocol}' not found in Excel.")
         continue
 
     df = xl.parse(protocol)
@@ -41,49 +41,43 @@ for protocol in active_protocols:
 
     st.dataframe(df, use_container_width=True)
 
-    # ROWS
-    index_list = list(df.index)
-    label_map = {i: f"Row {i+1}" for i in index_list}
+    # 📌 Description of changes
+    description = st.text_area(f"📝 Describe changes for {protocol}", key=f"{protocol}_desc")
+
+    # Default selections
+    default_raw = [0] + list(df.index[-3:])
+    default_indices = sorted(set(i for i in default_raw if i in df.index))
+    label_map = {i: f"Row {i+1}" for i in df.index}
     reverse_map = {v: k for k, v in label_map.items()}
 
-    default_raw = [0] + list(df.index[-3:])  # ← Change to list(df.index) for all
-    default_indices = sorted(set(i for i in default_raw if i in df.index))
-    default_labels = [label_map[i] for i in default_indices]
-
-    select_all_rows = st.checkbox(f"Select all rows for {protocol}", key=f"all_rows_{protocol}")
+    select_all = st.checkbox(f"Select all rows for {protocol}", key=f"all_{protocol}")
     selected_labels = st.multiselect(
         f"Select rows for {protocol}",
         options=[label_map[i] for i in df.index],
-        default=[label_map[i] for i in df.index] if select_all_rows else default_labels,
+        default=[label_map[i] for i in df.index] if select_all else [label_map[i] for i in default_indices],
         key=f"rows_{protocol}"
     )
     selected_indices = [reverse_map[label] for label in selected_labels]
 
-    # COLUMNS + rename
-    col_list = list(df.columns)
-    select_all_cols = st.checkbox(f"Select all columns for {protocol}", key=f"all_cols_{protocol}")
-    selected_cols = st.multiselect(
-        f"Select columns for {protocol}",
-        options=col_list,
-        default=col_list if select_all_cols else col_list,
-        key=f"cols_{protocol}"
-    )
-
+    # Column selection + rename
+    all_cols = list(df.columns)
+    selected_cols = st.multiselect(f"Select columns to show for {protocol}", options=all_cols, default=all_cols)
     renamed_cols = {}
-    st.markdown("#### ✏️ Rename Selected Columns (Optional)")
     for col in selected_cols:
-        new_name = st.text_input(f"Rename '{col}'", value=col, key=f"rename_{protocol}_{col}")
+        new_name = st.text_input(f"Rename '{col}'", value=col, key=f"{protocol}_{col}_rename")
         renamed_cols[col] = new_name
 
-    # Combine selections
+    # Append all mappings with description
     for row in selected_indices:
         for col in selected_cols:
-            selection_records.append({
+            rowcol_map.append({
                 "Protocol": protocol,
                 "RowIndex": row,
                 "OriginalColumn": col,
-                "RenamedColumn": renamed_cols.get(col, col)
+                "RenamedColumn": renamed_cols[col],
+                "Description": description.strip()
             })
+
 
 # SAVE
 if st.button("💾 Save Selections"):
