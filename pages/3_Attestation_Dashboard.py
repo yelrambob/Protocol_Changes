@@ -4,7 +4,11 @@ import os
 from io import BytesIO
 from datetime import datetime
 
-ATTEST_LOG = "attestation_log.csv"
+# Shared persistent storage
+BASE_DIR = "data"
+os.makedirs(BASE_DIR, exist_ok=True)
+
+ATTEST_LOG = os.path.join(BASE_DIR, "attestation_log.csv")
 
 st.set_page_config(
     page_title="Attestation Dashboard",
@@ -21,12 +25,10 @@ log_df = pd.read_csv(ATTEST_LOG)
 log_df.reset_index(inplace=True)
 log_df.rename(columns={"index": "Row Number"}, inplace=True)
 
-# Safely define required and available columns
+# Define columns
 required = ["Row Number", "Site", "Name", "Timestamp", "Protocols Completed"]
 available_required = [col for col in required if col in log_df.columns]
 extra_columns = [col for col in log_df.columns if col not in available_required and col not in ["Protocols Reviewed"]]
-
-# Final columns for display
 final_columns = available_required + extra_columns
 filtered_display_df = log_df[final_columns]
 
@@ -35,22 +37,13 @@ with st.expander("🔍 Filter Options", expanded=True):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        if "Site" in filtered_display_df.columns:
-            selected_site = st.multiselect("Filter by site:", options=filtered_display_df["Site"].dropna().unique())
-        else:
-            selected_site = []
+        selected_site = st.multiselect("Filter by site:", options=filtered_display_df["Site"].dropna().unique()) if "Site" in filtered_display_df.columns else []
 
     with col2:
-        if "Name" in filtered_display_df.columns:
-            selected_name = st.multiselect("Filter by name:", options=filtered_display_df["Name"].dropna().unique())
-        else:
-            selected_name = []
+        selected_name = st.multiselect("Filter by name:", options=filtered_display_df["Name"].dropna().unique()) if "Name" in filtered_display_df.columns else []
 
     with col3:
-        if "Timestamp" in filtered_display_df.columns:
-            date_range = st.date_input("Filter by date range:", [])
-        else:
-            date_range = []
+        date_range = st.date_input("Filter by date range:", []) if "Timestamp" in filtered_display_df.columns else []
 
     filtered_df = filtered_display_df.copy()
 
@@ -67,10 +60,10 @@ with st.expander("🔍 Filter Options", expanded=True):
             pd.to_datetime(filtered_df["Timestamp"], errors='coerce') <= pd.to_datetime(end_date)
         ]
 
-# Display
+# Display table
 st.dataframe(filtered_df, use_container_width=True)
 
-# Export
+# Export option
 with st.expander("📁 Export", expanded=False):
     if st.button("Export filtered data to Excel"):
         buffer = BytesIO()
@@ -83,7 +76,7 @@ with st.expander("📁 Export", expanded=False):
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-# Delete
+# Deletion
 with st.expander("🗑️ Delete Entries", expanded=False):
     if not filtered_df.empty:
         selected_to_delete = st.multiselect("Select row numbers to delete:", options=filtered_df["Row Number"].tolist())
