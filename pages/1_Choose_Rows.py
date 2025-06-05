@@ -47,6 +47,12 @@ except Exception as e:
 
 rowcol_data = []
 
+# Load previous selections if they exist
+if os.path.exists(ROWCOL_SELECTION_FILE):
+    saved_df = pd.read_csv(ROWCOL_SELECTION_FILE)
+else:
+    saved_df = pd.DataFrame(columns=["Protocol", "RowIndex", "OriginalColumn", "RenameRow", "Description"])
+
 for protocol in active_protocols:
     st.markdown(f"---\n### 📄 {protocol}")
     try:
