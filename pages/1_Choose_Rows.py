@@ -78,8 +78,9 @@ for protocol in active_protocols:
                 "Description": description.strip()
             })
 
-
-# SAVE
+#the save section that saves everything to the csv file
 if st.button("💾 Save Selections"):
-    pd.DataFrame(selection_records).to_csv(ROWCOL_SELECTION_FILE, index=False)
-    st.success("Row + column selections (with renames) saved to protocol_row_col_map.csv")
+    df_map = pd.DataFrame(rowcol_map)
+    df_map.to_csv("protocol_row_col_map.csv", index=False)
+    st.success("Saved! The attestation view has been updated.")
+
