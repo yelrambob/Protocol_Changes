@@ -136,7 +136,12 @@ if st.button("📨 Submit Attestation"):
         st.stop()
 
     # Send confirmation email
-    recipients = ["sean.chinery@atlantichealth.org"]
+    
+    # Load email addresses from a CSV file
+    df = pd.read_csv("emails.csv")  # make sure this path is correct
+    recipients = df["email"].dropna().tolist()  # drop blanks and convert to list
+
+    
     sender = "your.email@gmail.com"
     subject = f"Protocol Attestation Submitted by {name}"
     unchecked = [p for p in active_protocols if p not in finished_protocols]
