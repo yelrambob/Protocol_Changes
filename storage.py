@@ -27,9 +27,12 @@ def get_row_col_map():
     return pd.DataFrame(res.data)
 
 def set_row_col_map(df: pd.DataFrame):
-    supabase.table("row_col_map").delete().neq("protocol", "").execute()
-    data = df.to_dict(orient="records")
-    supabase.table("row_col_map").insert(data).execute()
+    """Replace mappings for each protocol independently to avoid overwriting others."""
+    for proto in df["protocol"].unique():
+        subset = df[df["protocol"] == proto]
+        supabase.table("row_col_map").delete().eq("protocol", proto).execute()
+        if not subset.empty:
+            supabase.table("row_col_map").insert(subset.to_dict(orient="records")).execute()
 
 
 ### --- ATTESTATION LOG ---
