@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import datetime
 from PIL import Image
 from collections import Counter
 import smtplib
@@ -8,9 +9,6 @@ from email.mime.multipart import MIMEMultipart
 import os
 import storage
 from Streamlit_App_Rewrite import EXCEL_FILE, SHEET_IMAGES_DIR
-from datetime import datetime, timedelta
-
-
 
 st.set_page_config(
     page_title="Protocol Attestation",
