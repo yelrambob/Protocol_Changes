@@ -120,17 +120,7 @@ if st.button("📨 Submit Attestation"):
         st.error("Please enter your name and site.")
         st.stop()
 
-    
-    # Current UTC time
-    now_utc = datetime.utcnow()
-    
-    # Subtract 4 hours to simulate Eastern Daylight Time (UTC−4)
-    now_est = now_utc - timedelta(hours=4)
-    
-    # Optional: Format it
-    formatted = now_est.strftime("%Y-%m-%d %I:%M %p")
-
-    timestamp = datetime.datetime.now(now_est).strftime("%Y-%m-%d %H:%M:%S")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     entry = {
         "name": name,
         "site": site,
