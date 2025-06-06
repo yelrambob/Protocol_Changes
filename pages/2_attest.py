@@ -10,11 +10,6 @@ import storage
 from Streamlit_App_Rewrite import EXCEL_FILE, SHEET_IMAGES_DIR
 from datetime import datetime, timedelta
 
-# Current UTC time
-now_utc = datetime.utcnow()
-
-# Subtract 4 hours to simulate Eastern Daylight Time (UTC−4)
-now_est = now_utc - timedelta(hours=4)
 
 
 st.set_page_config(
@@ -125,7 +120,17 @@ if st.button("📨 Submit Attestation"):
         st.error("Please enter your name and site.")
         st.stop()
 
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    # Current UTC time
+    now_utc = datetime.utcnow()
+    
+    # Subtract 4 hours to simulate Eastern Daylight Time (UTC−4)
+    now_est = now_utc - timedelta(hours=4)
+    
+    # Optional: Format it
+    formatted = now_est.strftime("%Y-%m-%d %I:%M %p")
+
+    timestamp = datetime.datetime.now(now_est).strftime("%Y-%m-%d %H:%M:%S")
     entry = {
         "name": name,
         "site": site,
