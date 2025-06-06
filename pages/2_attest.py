@@ -16,8 +16,6 @@ now_utc = datetime.utcnow()
 # Subtract 4 hours to simulate Eastern Daylight Time (UTC−4)
 now_est = now_utc - timedelta(hours=4)
 
-# Optional: Format it
-formatted = now_est.strftime("%Y-%m-%d %I:%M %p")
 
 st.set_page_config(
     page_title="Protocol Attestation",
